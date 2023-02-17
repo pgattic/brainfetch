@@ -43,7 +43,7 @@ int loadCode(FILE* f, char* dest, char debugMode) {
 	return head;		// return size (index of the last write) of file buffer
 }
 
-int printLinePosition(char* code, int pos) {
+void printLinePosition(char* code, int pos) {
 	int li = 1;
 	int ch = 1;
 	for (int i = 0; i < pos; i++) {
@@ -73,7 +73,7 @@ int testCode(char* prg, int size) {	// test code for issues with brackets (quick
 	return !bracketBalance;
 }
 
-int memDump(char* prg, char* mem, int head, int ptr) {	// Simple memory dump
+void memDump(char* prg, char* mem, int head, int ptr) {	// Simple memory dump
 	printLinePosition(prg, head);
 	printf("Memory relative to memory I/O head (in brackets):\n");
 	for (int i = ptr - 16; i < ptr + 17; i++) {
