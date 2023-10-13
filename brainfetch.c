@@ -140,6 +140,9 @@ int main(int argc, char** argv) {
 						if (prg[head] == '[') { bracketBalance++; }
 						if (prg[head] == ']') { bracketBalance--; }
 					} while (bracketBalance > 0);
+				} else if (prg[head+1] == '-' && prg[head+2] == ']') {			// "[-]" optimization (set current mem address to 0)
+					mem[ptr] = 0;
+					head += 2;
 				}
 				break;
 			case ']':

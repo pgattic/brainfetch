@@ -2,7 +2,7 @@
 .PHONY: all clean
 
 all:
-	gcc brainfetch.c -o brainfetch
+	gcc -O3 brainfetch.c -o brainfetch
 
 clean:
 	rm brainfetch
