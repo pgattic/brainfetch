@@ -12,21 +12,21 @@ struct Cli {
     file: PathBuf,
 }
 
-fn main() {
+fn main() -> Result<(), &'static str> {
     let cli = Cli::parse();
 
     let contents: String = match fs::read_to_string(&cli.file) {
         Ok(data) => data,
         Err(err) => {
             eprintln!("Can't open file '{}': {}", cli.file.to_string_lossy(), err);
-            std::process::exit(0x02);
+            return Err("Unable to open specified file.")
         }
     };
 
-    let program = command::parse(&contents);
-    let program_opt = command_opt::optimize_prg(&program);
+    let program = command_opt::parse(&contents)?;
     
-    //command::execute_prg(&program);
-    command_opt::execute_prg(&program_opt);
+    command_opt::execute(&program)?;
+
+    Ok(())
 }
 
