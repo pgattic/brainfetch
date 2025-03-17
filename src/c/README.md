@@ -17,3 +17,7 @@ By Preston Corless
   - Slower and less memory-efficient code execution, but provides more helpful error messages and breakpoints.
   - When active, the asterisk (*) command works as a breakpoint, upon which a small memory dump is displayed and the program ends.
 
+## Performance
+
+- Executes `/bf/mandelbrot.bf` in ~41.7 seconds on average on my machine
+
