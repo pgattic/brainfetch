@@ -64,7 +64,9 @@ pub fn main() !void {
             .decVal => mem[mem_ptr] -%= 1,
             .putChar => {
                 try stdout.print("{c}", .{mem[mem_ptr]});
-                try bw.flush();
+                if (mem[mem_ptr] == '\n') {
+                    try bw.flush();
+                }
             },
             .getChar => {},
             .openBr => {
