@@ -130,7 +130,11 @@ pub fn execute(prg: &Vec<CommandOpt>) -> Result<(), &'static str> {
                     prg_head = target;
                 }
             },
-            CommandOpt::CloseBr(target) => prg_head = target - 1,
+            CommandOpt::CloseBr(target) => {
+                if mem[mem_ptr] != 0 {
+                    prg_head = target;
+                }
+            },
             CommandOpt::Zero => mem[mem_ptr] = 0,
         }
         prg_head += 1;

@@ -8,5 +8,6 @@ The implementations can be found in the `src/` directory.
 Current implementations include:
 
 - C
+- Python
 - Rust
 

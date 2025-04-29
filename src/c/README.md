@@ -20,4 +20,5 @@ By Preston Corless
 ## Performance
 
 - Executes `/bf/mandelbrot.bf` in ~41.7 seconds on average on my machine
+- Executes `/bf/hanoi.bf` in ~1.086 seconds
 
