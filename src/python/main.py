@@ -24,7 +24,20 @@ def parse_code(code: str):
     }
     return [mapping[ch] for ch in code if ch in mapping]
 
+def compute_bracket_lookup(code: list[int]):
+    jump_table = {}
+    stack = []
+    for idx, cmd in enumerate(code):
+        if cmd == OPEN_BR:
+            stack.append(idx)
+        elif cmd == CLOSE_BR:
+            start = stack.pop()
+            jump_table[start] = idx
+            jump_table[idx] = start
+    return jump_table
+
 def execute_code(code: list[int]):
+    jump_table = compute_bracket_lookup(code)
     # Initialize memory
     prg_head = 0
     memory = bytearray(30_000)
@@ -45,27 +58,12 @@ def execute_code(code: list[int]):
             memory[mem_ptr] = (memory[mem_ptr] - 1) & 0xff
         elif code[prg_head] == PUT_CHAR:
             sys.stdout.write(chr(memory[mem_ptr]))
-            # print(chr(memory[mem_ptr]), end="")
         elif code[prg_head] == GET_CHAR:
             memory[mem_ptr] = ord(readchar.readchar())
         elif code[prg_head] == OPEN_BR:
-            if memory[mem_ptr] == 0:
-                bracket_bal = 1
-                while bracket_bal > 0:
-                    prg_head += 1
-                    if code[prg_head] == OPEN_BR:
-                        bracket_bal += 1
-                    elif code[prg_head] == CLOSE_BR:
-                        bracket_bal -= 1
+            if memory[mem_ptr] == 0: prg_head = jump_table[prg_head]
         elif code[prg_head] == CLOSE_BR:
-            bracket_bal = 1
-            while bracket_bal > 0:
-                prg_head -= 1
-                if code[prg_head] == CLOSE_BR:
-                    bracket_bal += 1
-                elif code[prg_head] == OPEN_BR:
-                    bracket_bal -= 1
-            prg_head -= 1
+            if memory[mem_ptr] != 0: prg_head = jump_table[prg_head]
         prg_head += 1
 
 def main():
@@ -81,7 +79,8 @@ def main():
         print(f"Error reading {filename}: {e}")
         sys.exit(1)
 
-    execute_code(parse_code(content))
+    code = parse_code(content)
+    execute_code(code)
 
 
 if __name__ == "__main__":
