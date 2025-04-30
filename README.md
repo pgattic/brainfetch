@@ -1,15 +1,17 @@
 
 # BrainFetch
 
-This is a collection of BrainF*** interpreters I wrote in various languages, both as a test of my abilities and as a test of the general performance of the languages in everyday computation tasks.
+This is a collection of BrainF*** interpreters and compilers I wrote in various languages, both as a test of my abilities and as a test of the general performance of the languages in everyday computation tasks.
 
 The implementations can be found in the `src/` directory.
 
 Current implementations include:
 
 - C (most features)
+- C-compiled (fastest)
 - Python
-- Rust (fastest, safest)
+- Rust (safest)
+- Zig
 
 ## Implementation Methods
 
@@ -39,8 +41,10 @@ Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running
 | Language | Time |
 | - | -:|
 | C | 41.715 |
-| Python | 1:31.953 |
+| C-aot | 0.991 |
+| Python-jit | 1:31.953 |
 | Rust | 6.786 |
+| Zig | 37.700 |
 
 ## Useful Resources
 
