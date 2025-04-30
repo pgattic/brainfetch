@@ -20,7 +20,7 @@ Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running
 | Language | Time |
 | - | -:|
 | C | 41.715 |
-| Python | 8:35.572 |
+| Python | 1:31.953 |
 | Rust | 6.786 |
 
 ## Useful Resources

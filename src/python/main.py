@@ -1,5 +1,4 @@
 import sys
-import readchar
 from pathlib import Path
 
 INC_PTR = 1
@@ -47,44 +46,53 @@ def optimize_code(code: list[int]):
 
     return result
 
-def compute_bracket_lookup(code: list[tuple[int, int]]):
-    jump_table = {}
-    stack = []
-    for idx, (cmd, _) in enumerate(code):
-        if cmd == OPEN_BR:
-            stack.append(idx)
-        elif cmd == CLOSE_BR:
-            start = stack.pop()
-            jump_table[start] = idx
-            jump_table[idx] = start
-    return jump_table
+def jit_cmd(cmd: int, count: int):
+    if cmd == INC_PTR: return f"mem_ptr += {count}"
+    elif cmd == DEC_PTR: return f"mem_ptr -= {count}"
+    elif cmd == INC_VAL: return f"memory[mem_ptr] = (memory[mem_ptr] + {count}) & 0xff"
+    elif cmd == DEC_VAL: return f"memory[mem_ptr] = (memory[mem_ptr] - {count}) & 0xff"
+    elif cmd == ZERO: return f"memory[mem_ptr] = 0"
+    elif cmd == PUT_CHAR: return f"print_chars(bytes([memory[mem_ptr]] * {count}))"
+    elif cmd == GET_CHAR: return f"memory[mem_ptr] = ord(readchar.readchar())"
+    elif cmd == OPEN_BR: return f"while memory[mem_ptr] != 0:"
+    else: return None
 
-def execute_code(code: list[(int, int)]):
-    jump_table = compute_bracket_lookup(code)
-    # Initialize memory
-    prg_head = 0
-    memory = bytearray(30_000)
-    mem_ptr = 0
-    code_len = len(code)
+def generate_jit_source(code: list[tuple[int, int]]):
+    lines = [
+        "import sys",
+        "import readchar",
+        "",
+        "def print_chars(chars):",
+        "    sys.stdout.buffer.write(chars)",
+        "    sys.stdout.flush()",
+        "",
+        "def run():",
+        "    memory = bytearray(30_000)",
+        "    mem_ptr = 0",
+    ]
 
-    # Execute the code
-    while prg_head < code_len:
-        (cmd, count) = code[prg_head]
-        if cmd == INC_PTR: mem_ptr += count
-        elif cmd == DEC_PTR: mem_ptr -= count
-        elif cmd == INC_VAL: memory[mem_ptr] = (memory[mem_ptr] + count) & 0xff
-        elif cmd == DEC_VAL: memory[mem_ptr] = (memory[mem_ptr] - count) & 0xff
-        elif cmd == ZERO: memory[mem_ptr] = 0
-        elif cmd == PUT_CHAR:
-            sys.stdout.buffer.write(bytes([memory[mem_ptr]] * count))
-            sys.stdout.flush()
-        elif cmd == GET_CHAR: memory[mem_ptr] = ord(readchar.readchar())
-        elif cmd == OPEN_BR:
-            if memory[mem_ptr] == 0: prg_head = jump_table[prg_head]
-        elif cmd == CLOSE_BR:
-            if memory[mem_ptr] != 0: prg_head = jump_table[prg_head]
+    indentation = 1
 
-        prg_head += 1
+    for (cmd, count) in code:
+        jit = jit_cmd(cmd, count)
+        if jit is not None:
+            lines.append("    " * indentation + jit)
+        if cmd == OPEN_BR: indentation += 1
+        elif cmd == CLOSE_BR: indentation -= 1
+
+    return "\n".join(lines)
+
+def compile_jit_function(source: str):
+    namespace = {}
+    compiled = compile(source, "<jit>", "exec")
+    exec(compiled, namespace, namespace)
+    return namespace["run"]
+
+
+def jit_code(code):
+    source = generate_jit_source(code)
+    run_fn = compile_jit_function(source)
+    run_fn()  # Executes the BrainF*** program
 
 def main():
     # Open file from CLI args
@@ -100,7 +108,8 @@ def main():
         sys.exit(1)
 
     code = optimize_code(parse_code(content))
-    execute_code(code)
+
+    jit_code(code)
 
 
 if __name__ == "__main__":
