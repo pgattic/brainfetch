@@ -8,18 +8,20 @@ The implementations can be found in the `src/` directory.
 Current implementations include:
 
 - C (most features)
-- Python (slowest)
+- Python
 - Rust (fastest, safest)
 
-## Performance of the interpreters
+## Performance
+
+Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running Arch Linux.
 
 `mandelbrot.bf`:
 
 | Language | Time |
 | - | -:|
-| C | 41.7 |
-| Python | 32:58.558 |
-| Rust | 6.0 |
+| C | 41.715 |
+| Python | 8:35.572 |
+| Rust | 6.786 |
 
 ## Useful Resources
 

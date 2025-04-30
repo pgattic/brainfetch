@@ -11,8 +11,6 @@ By Preston Corless
 
 ## Performance
 
-Pretty bad compared to the other implementations.
-
-- Completes `hanoi.bf` in 1:06.
-- Completes `mandelbrot.bf` in 32:58
+- Completes `hanoi.bf` in 29.818
+- Completes `mandelbrot.bf` in 8:35.572
 

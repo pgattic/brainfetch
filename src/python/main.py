@@ -10,6 +10,7 @@ PUT_CHAR = 5
 GET_CHAR = 6
 OPEN_BR = 7
 CLOSE_BR = 8
+ZERO = 9
 
 def parse_code(code: str):
     mapping = {
@@ -24,10 +25,32 @@ def parse_code(code: str):
     }
     return [mapping[ch] for ch in code if ch in mapping]
 
-def compute_bracket_lookup(code: list[int]):
+# Perform a sort-of RLE of program
+def optimize_code(code: list[int]):
+    result = []
+    last_cmd = None
+    count = 0
+    for cmd in code:
+        if cmd == last_cmd and cmd in (INC_PTR, DEC_PTR, INC_VAL, DEC_VAL, PUT_CHAR):
+            count += 1
+        else:
+            if last_cmd is not None:
+                result.append((last_cmd, count))
+            count = 1
+        last_cmd = cmd
+    result.append((last_cmd, count))
+
+    # `[-]` Optimization
+    for i, cmd in enumerate(result):
+        if cmd[0] == OPEN_BR and i < len(result) - 2 and result[i+1][0] == DEC_VAL and result[i+2][0] == CLOSE_BR:
+            result[i:i+3] = [(ZERO, 1)]
+
+    return result
+
+def compute_bracket_lookup(code: list[tuple[int, int]]):
     jump_table = {}
     stack = []
-    for idx, cmd in enumerate(code):
+    for idx, (cmd, _) in enumerate(code):
         if cmd == OPEN_BR:
             stack.append(idx)
         elif cmd == CLOSE_BR:
@@ -36,34 +59,31 @@ def compute_bracket_lookup(code: list[int]):
             jump_table[idx] = start
     return jump_table
 
-def execute_code(code: list[int]):
+def execute_code(code: list[(int, int)]):
     jump_table = compute_bracket_lookup(code)
     # Initialize memory
     prg_head = 0
     memory = bytearray(30_000)
     mem_ptr = 0
+    code_len = len(code)
 
     # Execute the code
-    while prg_head < len(code):
-        cmd = code[prg_head]
-        if code[prg_head] == INC_PTR:
-            mem_ptr += 1
-            if len(memory) <= mem_ptr:
-                memory.append(0)
-        elif code[prg_head] == DEC_PTR:
-            mem_ptr -= 1
-        elif code[prg_head] == INC_VAL:
-            memory[mem_ptr] = (memory[mem_ptr] + 1) & 0xff
-        elif code[prg_head] == DEC_VAL:
-            memory[mem_ptr] = (memory[mem_ptr] - 1) & 0xff
-        elif code[prg_head] == PUT_CHAR:
-            sys.stdout.write(chr(memory[mem_ptr]))
-        elif code[prg_head] == GET_CHAR:
-            memory[mem_ptr] = ord(readchar.readchar())
-        elif code[prg_head] == OPEN_BR:
+    while prg_head < code_len:
+        (cmd, count) = code[prg_head]
+        if cmd == INC_PTR: mem_ptr += count
+        elif cmd == DEC_PTR: mem_ptr -= count
+        elif cmd == INC_VAL: memory[mem_ptr] = (memory[mem_ptr] + count) & 0xff
+        elif cmd == DEC_VAL: memory[mem_ptr] = (memory[mem_ptr] - count) & 0xff
+        elif cmd == ZERO: memory[mem_ptr] = 0
+        elif cmd == PUT_CHAR:
+            sys.stdout.buffer.write(bytes([memory[mem_ptr]] * count))
+            sys.stdout.flush()
+        elif cmd == GET_CHAR: memory[mem_ptr] = ord(readchar.readchar())
+        elif cmd == OPEN_BR:
             if memory[mem_ptr] == 0: prg_head = jump_table[prg_head]
-        elif code[prg_head] == CLOSE_BR:
+        elif cmd == CLOSE_BR:
             if memory[mem_ptr] != 0: prg_head = jump_table[prg_head]
+
         prg_head += 1
 
 def main():
@@ -79,7 +99,7 @@ def main():
         print(f"Error reading {filename}: {e}")
         sys.exit(1)
 
-    code = parse_code(content)
+    code = optimize_code(parse_code(content))
     execute_code(code)
 
 
