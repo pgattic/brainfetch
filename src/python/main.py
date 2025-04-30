@@ -13,14 +13,10 @@ ZERO = 9
 
 def parse_code(code: str):
     mapping = {
-        '>': INC_PTR,
-        '<': DEC_PTR,
-        '+': INC_VAL,
-        '-': DEC_VAL,
-        '.': PUT_CHAR,
-        ',': GET_CHAR,
-        '[': OPEN_BR,
-        ']': CLOSE_BR,
+        '>': INC_PTR, '<': DEC_PTR,
+        '+': INC_VAL, '-': DEC_VAL,
+        '.': PUT_CHAR, ',': GET_CHAR,
+        '[': OPEN_BR, ']': CLOSE_BR,
     }
     return [mapping[ch] for ch in code if ch in mapping]
 
@@ -28,24 +24,24 @@ def parse_code(code: str):
 def optimize_code(code: list[int]):
     result = []
     last_cmd = None
-    count = 0
+    count = 1
     for cmd in code:
         if cmd == last_cmd and cmd in (INC_PTR, DEC_PTR, INC_VAL, DEC_VAL, PUT_CHAR):
             count += 1
-        else:
-            if last_cmd is not None:
-                result.append((last_cmd, count))
+        elif last_cmd is not None:
+            result.append((last_cmd, count))
             count = 1
         last_cmd = cmd
     result.append((last_cmd, count))
 
     # `[-]` Optimization
     for i, cmd in enumerate(result):
-        if cmd[0] == OPEN_BR and i < len(result) - 2 and result[i+1][0] == DEC_VAL and result[i+2][0] == CLOSE_BR:
+        if i < len(result) - 2 and result[i:i+3] == [(OPEN_BR, 1), (DEC_VAL, 1), (CLOSE_BR, 1)]:
             result[i:i+3] = [(ZERO, 1)]
 
     return result
 
+# Turn a given BF command into a line of Python code
 def jit_cmd(cmd: int, count: int):
     if cmd == INC_PTR: return f"mem_ptr += {count}"
     elif cmd == DEC_PTR: return f"mem_ptr -= {count}"
@@ -57,22 +53,20 @@ def jit_cmd(cmd: int, count: int):
     elif cmd == OPEN_BR: return f"while memory[mem_ptr] != 0:"
     else: return None
 
+# Convert tokenized BF code into Python source code
 def generate_jit_source(code: list[tuple[int, int]]):
     lines = [
         "import sys",
         "import readchar",
-        "",
         "def print_chars(chars):",
         "    sys.stdout.buffer.write(chars)",
         "    sys.stdout.flush()",
-        "",
         "def run():",
         "    memory = bytearray(30_000)",
-        "    mem_ptr = 0",
+        "    mem_ptr = 0"
     ]
 
     indentation = 1
-
     for (cmd, count) in code:
         jit = jit_cmd(cmd, count)
         if jit is not None:
@@ -82,24 +76,16 @@ def generate_jit_source(code: list[tuple[int, int]]):
 
     return "\n".join(lines)
 
-def compile_jit_function(source: str):
+def compile_jit_source(source: str):
     namespace = {}
     compiled = compile(source, "<jit>", "exec")
     exec(compiled, namespace, namespace)
-    return namespace["run"]
-
-
-def jit_code(code):
-    source = generate_jit_source(code)
-    run_fn = compile_jit_function(source)
-    run_fn()  # Executes the BrainF*** program
+    return namespace
 
 def main():
-    # Open file from CLI args
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <filename>")
         sys.exit(1)
-
     filename = Path(sys.argv[1])
     try:
         content = filename.read_text(encoding="utf-8")
@@ -108,9 +94,8 @@ def main():
         sys.exit(1)
 
     code = optimize_code(parse_code(content))
-
-    jit_code(code)
-
+    namespace = compile_jit_source(generate_jit_source(code))
+    namespace["run"]() # Executes the BrainF*** program
 
 if __name__ == "__main__":
     main()
