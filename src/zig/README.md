@@ -11,5 +11,5 @@ By Preston Corless
 
 ## Performance
 
-- Can run `/bf/mandelbrot.bf` in 8.416 secs on my machine
+- Can run `/bf/mandelbrot.bf` in 8.010 secs on my machine
 

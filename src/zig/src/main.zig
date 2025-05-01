@@ -66,14 +66,26 @@ fn optimize_code(allocator: std.mem.Allocator, code: std.ArrayList(Command)) !st
     var last_cmd: ?Command = null;
     var count: usize = 1;
     const opt_cmds: []const Command = &.{Command.incPtr, Command.decPtr, Command.incVal, Command.decVal};
-    for (code.items) |cmd| {
+    var i: usize = 0;
+    while (i < code.items.len) {
+        const cmd = code.items[i];
         if (cmd == last_cmd and array_contains(Command, opt_cmds, cmd)) {
             count += 1;
+            last_cmd = cmd;
         } else if (last_cmd != null) {
-            try result.append(cmd_to_optcmd(last_cmd.?, count));
+            if (last_cmd == Command.openBr and cmd == Command.decVal and code.items[i+1] == Command.closeBr) {
+                try result.append(.zero);
+                i += 2;
+                last_cmd = code.items[i];
+            } else {
+                try result.append(cmd_to_optcmd(last_cmd.?, count));
+                last_cmd = cmd;
+            }
             count = 1;
+        } else {
+            last_cmd = cmd;
         }
-        last_cmd = cmd;
+        i += 1;
     }
     if (last_cmd != null) {
         try result.append(cmd_to_optcmd(last_cmd.?, count));
@@ -81,13 +93,13 @@ fn optimize_code(allocator: std.mem.Allocator, code: std.ArrayList(Command)) !st
 
     // Add jumps to enums
     var unsolved = std.ArrayList(usize).init(allocator);
-    for (result.items, 0..) |cmd, i| {
+    for (result.items, 0..) |cmd, j| {
         if (cmd == .openBr) {
-            try unsolved.append(i);
+            try unsolved.append(j);
         } else if (cmd == .closeBr) {
             const connection = unsolved.pop().?;
-            result.items[connection] = .{.openBr = i};
-            result.items[i] = .{.closeBr = connection};
+            result.items[connection] = .{.openBr = j};
+            result.items[j] = .{.closeBr = connection};
         }
     }
 
@@ -100,7 +112,7 @@ fn execute(prg: std.ArrayList(OptCommand)) !void {
     const stdout = bw.writer();
 
     var prg_head: usize = 0;
-    var mem = std.mem.zeroes([65535]u8);
+    var mem = std.mem.zeroes([65536]u8);
     var mem_ptr: usize = 0;
 
     while (prg_head < prg.items.len) {
