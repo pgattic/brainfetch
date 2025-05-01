@@ -11,6 +11,5 @@ By Preston Corless
 
 ## Performance
 
-- Can run `/bf/mandelbrot.bf` in ~37.7 secs on average on my machine
-- Not to worry, it has a lot of potential optimizations
+- Can run `/bf/mandelbrot.bf` in 8.416 secs on my machine
 
