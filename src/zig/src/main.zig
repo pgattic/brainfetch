@@ -63,33 +63,38 @@ fn cmd_to_optcmd(cmd: Command, count: usize) OptCommand {
 
 fn optimize_code(allocator: std.mem.Allocator, code: std.ArrayList(Command)) !std.ArrayList(OptCommand) {
     var result = std.ArrayList(OptCommand).init(allocator);
-    var last_cmd: ?Command = null;
+
+    if (code.items.len == 0) return result;
+
+    // Basically, the goal of the loop is to keep track of repeating repeatable commands and append 
+    // to `result` when a repeatable command is done repeating, and after each non-repeatable
+    // command
+
+    var i: usize = 1;
+    var last_cmd: Command = code.items[0];
     var count: usize = 1;
-    const opt_cmds: []const Command = &.{Command.incPtr, Command.decPtr, Command.incVal, Command.decVal};
-    var i: usize = 0;
+
+    const repeat_cmds: []const Command = &.{Command.incPtr, Command.decPtr, Command.incVal, Command.decVal};
     while (i < code.items.len) {
         const cmd = code.items[i];
-        if (cmd == last_cmd and array_contains(Command, opt_cmds, cmd)) {
+        if (cmd == last_cmd and array_contains(Command, repeat_cmds, cmd)) {
             count += 1;
             last_cmd = cmd;
-        } else if (last_cmd != null) {
+        } else {
+            // Check for `[-]` (biggest culprit of spaghettification)
             if (last_cmd == Command.openBr and cmd == Command.decVal and code.items[i+1] == Command.closeBr) {
                 try result.append(.zero);
                 i += 2;
                 last_cmd = code.items[i];
             } else {
-                try result.append(cmd_to_optcmd(last_cmd.?, count));
+                try result.append(cmd_to_optcmd(last_cmd, count));
                 last_cmd = cmd;
             }
             count = 1;
-        } else {
-            last_cmd = cmd;
         }
         i += 1;
     }
-    if (last_cmd != null) {
-        try result.append(cmd_to_optcmd(last_cmd.?, count));
-    }
+    try result.append(cmd_to_optcmd(last_cmd, count));
 
     // Add jumps to enums
     var unsolved = std.ArrayList(usize).init(allocator);
@@ -147,7 +152,7 @@ fn execute(prg: std.ArrayList(OptCommand)) !void {
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    // Process command-line arguments.
+    // Process command-line arguments
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
     if (args.len < 2) {
@@ -156,6 +161,7 @@ pub fn main() !void {
     }
     const filename = args[1];
 
+    // Open file
     const cwd = std.fs.cwd();
     const file = try cwd.openFile(filename, .{});
     const code = try file.readToEndAlloc(allocator, 65535);

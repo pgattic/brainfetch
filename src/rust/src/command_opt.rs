@@ -107,9 +107,11 @@ pub fn execute(prg: &Vec<CommandOpt>) -> Result<(), &'static str> {
                 mem_ptr += amt;
                 while mem_ptr >= mem.len() { mem.push(0) } // Dynamically growing memory
             },
-            CommandOpt::DecPtr(amt) => match mem_ptr.checked_sub(amt) {
-                Some(val) => mem_ptr = val,
-                None => return Err("Pointer underflow (attempted to move read/write head below 0)")
+            CommandOpt::DecPtr(amt) => {
+                match mem_ptr.checked_sub(amt) {
+                    Some(val) => mem_ptr = val,
+                    None => return Err("Pointer underflow (attempted to move read/write head below 0)")
+                }
             },
             CommandOpt::IncVal(amt) => mem[mem_ptr] = mem[mem_ptr].wrapping_add(amt),
             CommandOpt::DecVal(amt) => mem[mem_ptr] = mem[mem_ptr].wrapping_sub(amt),
@@ -118,12 +120,11 @@ pub fn execute(prg: &Vec<CommandOpt>) -> Result<(), &'static str> {
                 None => return Err("Invalid char printed"),
             }
             CommandOpt::GetChar => {
-                use std::io::{self, Read};
+                use std::io::Read;
                 let mut buffer = [0u8; 1];
-                match io::stdin() .read_exact(&mut buffer) {
-                    Ok(()) => mem[mem_ptr] = buffer[0],
-                    Err(_) => return Err("Problem reading from stdin")
-                }
+                // Throw away error (if no stdin, just keep it at 0)
+                let _ = std::io::stdin().read_exact(&mut buffer);
+                mem[mem_ptr] = buffer[0];
             },
             CommandOpt::OpenBr(target) => {
                 if mem[mem_ptr] == 0 {
