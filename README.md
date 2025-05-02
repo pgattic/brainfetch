@@ -42,6 +42,7 @@ Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running
 | - | -:|
 | C | 41.715 |
 | C-aot | 0.991 |
+| JavaScript (nodejs) | 2:27.267 |
 | Python-jit | 1:31.953 |
 | Rust | 6.786 |
 | Zig | 8.010 |
@@ -49,5 +50,5 @@ Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running
 ## Useful Resources
 
 - Wikipedia article on [BrainF***](https://en.wikipedia.org/wiki/Brainfuck)
-- This [random GitHub repo](https://github.com/fabianishere/brainfuck/tree/master/examples) with a whole bunch of great examples
+- This [random GitHub repo](https://github.com/fabianishere/brainfuck/tree/master/examples) with a whole bunch of great BF example programs
 
