@@ -129,6 +129,59 @@ fn optimizeClear(gpa: Allocator, commands_ptr: *[]OptCommand) !void {
         read_idx += 1;
     }
 
+    // Shrink the allocation to match our use
+    commands_ptr.* = try gpa.realloc(commands, write_idx);
+}
+
+// This function replaces repetitions of commands with singular commands.
+fn optimizeRepeats(gpa: Allocator, commands_ptr: *[]OptCommand) !void {
+    const commands = commands_ptr.*;
+    var read_idx: usize = 0;
+    var write_idx: usize = 0;
+
+    while (read_idx < commands.len) {
+        switch (commands[read_idx]) {
+            .add_cell => {
+                // Consume all repeating + and - until you hit something else
+                var increment: u8 = 0;
+                eat: while (read_idx < commands.len) {
+                    if (commands[read_idx] == .add_cell) {
+                        increment +%= commands[read_idx].add_cell;
+                        read_idx += 1;
+                    } else {
+                        break :eat;
+                    }
+                }
+                // Insert the sum of the increments at the current writing ptr
+                commands[write_idx] = .{ .add_cell = increment };
+                write_idx += 1;
+            },
+            .add_ptr => {
+                // Consume all repeating > and < until you hit something else
+                var shift: u16 = 0;
+                eat: while (read_idx < commands.len) {
+                    if (commands[read_idx] == .add_ptr) {
+                        shift +%= commands[read_idx].add_ptr;
+                        read_idx += 1;
+                    } else {
+                        break :eat;
+                    }
+                }
+                // Insert the sum of the shifts at the current writing ptr
+                commands[write_idx] = .{ .add_ptr = shift };
+                write_idx += 1;
+            },
+            else => {
+                // If it is not something that can be repeated, place it at the
+                // write position and advance to the next position.
+                commands[write_idx] = commands[read_idx];
+                read_idx += 1;
+                write_idx += 1;
+            },
+        }
+    }
+
+    // Shrink the allocation to match our use
     commands_ptr.* = try gpa.realloc(commands, write_idx);
 }
 
@@ -197,7 +250,7 @@ fn linkLoops(commands: []OptCommand) !void {
     }
 }
 
-fn execute(gpa: Allocator, commands: []const OptCommand) !void {
+fn execute(commands: []const OptCommand) !void {
     const unbuffered_stdout = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(unbuffered_stdout);
     const stdout = bw.writer();
@@ -205,14 +258,19 @@ fn execute(gpa: Allocator, commands: []const OptCommand) !void {
     var pc: usize = 0;
     var ptr: u16 = 0;
 
-    const mem = try gpa.alloc(u8, 1 << 16);
-    defer gpa.free(mem);
+    var mem: [65536]u8 = @splat(0);
 
     while (pc < commands.len) : (pc += 1) {
         switch (commands[pc]) {
-            .add_cell => |amt| mem[ptr] +%= amt,
             .add_ptr => |amt| ptr +%= amt,
+            .add_cell => |amt| mem[ptr] +%= amt,
             .clear => mem[ptr] = 0,
+            .loop_start => |end_idx| {
+                if (mem[ptr] == 0) pc = end_idx;
+            },
+            .loop_end => |start_idx| {
+                if (mem[ptr] != 0) pc = start_idx;
+            },
             .get_char => {
                 // BF may rely on the user knowing what has been printed for
                 // certain same-line inputs. Thus, we flush the output here.
@@ -222,12 +280,6 @@ fn execute(gpa: Allocator, commands: []const OptCommand) !void {
             .put_char => {
                 try stdout.writeByte(mem[ptr]);
                 if (mem[ptr] == '\n') try bw.flush();
-            },
-            .loop_start => |end_idx| {
-                if (mem[ptr] == 0) pc = end_idx;
-            },
-            .loop_end => |start_idx| {
-                if (mem[ptr] != 0) pc = start_idx;
             },
         }
     }
@@ -263,11 +315,13 @@ pub fn main() !void {
     var commands = try mapCommands(gpa, tokens);
     defer gpa.free(commands);
 
+    try optimizeRepeats(gpa, &commands);
     try optimizeClear(gpa, &commands);
 
     // TODO: here would be a good spot to switch on the errors and return
     // some more readable error for invalid BF code (loops not matching).
     try linkLoops(commands);
 
-    try execute(gpa, commands);
+    // Allocates 64k stack
+    try execute(commands);
 }
