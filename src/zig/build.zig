@@ -15,11 +15,17 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "brainfetch",
+    const exe_mod = b.addModule("brainfetch", .{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+    });
+    exe_mod.strip = b.option(bool, "strip", "remove debug info");
+
+    // An executable has a root module and name
+    const exe = b.addExecutable(.{
+        .name = "brainfetch",
+        .root_module = exe_mod,
     });
 
     // This declares intent for the executable to be installed into the

@@ -1,10 +1,7 @@
 .{
     .name = .brainfetch,
-
     .version = "0.0.0",
-
     .fingerprint = 0x9c97040fbdfb6163,
-
     .dependencies = .{},
 
     // Specifies the set of files and directories that are included in this package.
