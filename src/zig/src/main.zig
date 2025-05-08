@@ -1,175 +1,273 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
+const assert = std.debug.assert;
+
+// Typical BF code has 30,000 cells. This interpreter uses 2^16 cells instead.
+// This is still valid according to all sources I read, and allows us to write
+// more performant interpreter code.
 
 const Command = enum {
-    incPtr,
-    decPtr,
-    incVal,
-    decVal,
-    putChar,
-    getChar,
-    openBr,
-    closeBr,
+    inc_cell,
+    dec_cell,
+    inc_ptr,
+    dec_ptr,
+    get_char,
+    put_char,
+    loop_start,
+    loop_end,
 };
 
 const OptCommand = union(enum) {
-    addPtr: usize,
-    subPtr: usize,
-    addVal: u8,
-    subVal: u8,
-    zero,
-    putChar,
-    getChar,
-    openBr: usize,
-    closeBr: usize,
+    add_cell: u8, // wrapping value that is added to a cell
+    add_ptr: u16, // wrapping value that is added to the pc
+    clear, // Happy path for [-]
+    get_char,
+    put_char,
+    loop_start: usize, // value points to the end of the loop
+    loop_end: usize, // value points to the start of the loop
 };
 
-fn parse_code(allocator: std.mem.Allocator, code: []u8) !std.ArrayList(Command) {
-    var result = std.ArrayList(Command).init(allocator);
+// Note that we use []const u8 instead of []u8, because we do not wish to
+// modify the code bytes. Also note that we avoid passing std.ArrayList around,
+// as we don't need to later mutate the tokens.
+fn tokenize(gpa: Allocator, code: []const u8) ![]Command {
+    // ArrayListUnmanaged is generally preferred over ArrayList, as we know
+    // which methods do and do not allocate memory. It also saves space, as
+    // it does not store the Allocator structure. In the future, the other
+    // varient will be removed, replaced with ArrayListUnmanaged. Also note
+    // the decl-literal syntax `.empty`, which is preferred to the alternative.
+    var tokens: std.ArrayListUnmanaged(Command) = .empty;
+    defer tokens.deinit(gpa);
+    // ^ In all cases (error or otherwise) we want to deinitialize the list. In
+    // the case that we would be returning an ArrayList directly, we would want
+    // to use errdefer to help prevent memory leaks in our program.
+
     for (code) |c| {
-        switch (c) {
-            '>' => try result.append(.incPtr),
-            '<' => try result.append(.decPtr),
-            '+' => try result.append(.incVal),
-            '-' => try result.append(.decVal),
-            '.' => try result.append(.putChar),
-            ',' => try result.append(.getChar),
-            '[' => try result.append(.openBr),
-            ']' => try result.append(.closeBr),
+        const command: Command = switch (c) {
+            '>' => .inc_ptr,
+            '<' => .dec_ptr,
+            '+' => .inc_cell,
+            '-' => .dec_cell,
+            '.' => .put_char,
+            ',' => .get_char,
+            '[' => .loop_start,
+            ']' => .loop_end,
+            else => continue,
+        };
+
+        try tokens.append(gpa, command);
+    }
+
+    // You can choose to omit the `try` in a `return try`, it's currently
+    // an opinion but may be hard required or not in the future.
+    return try tokens.toOwnedSlice(gpa);
+}
+
+// In this function we will not actually link up the loop starts & ends,
+// as further will manipulate and distort the IR
+fn mapCommands(gpa: Allocator, tokens: []const Command) ![]OptCommand {
+    var opt_commands: std.ArrayListUnmanaged(OptCommand) = .empty;
+    defer opt_commands.deinit(gpa);
+
+    // By allocating all of the space up-front, we don't need to call the
+    // allocator constantly, and avoid the checks for inserting items.
+    try opt_commands.ensureTotalCapacity(gpa, tokens.len);
+
+    for (tokens) |cmd| {
+        const opt_cmd: OptCommand = switch (cmd) {
+            .inc_cell => .{ .add_cell = 1 },
+            .dec_cell => .{ .add_cell = 255 },
+            .inc_ptr => .{ .add_ptr = 1 },
+            .dec_ptr => .{ .add_ptr = 65535 },
+            .get_char => .get_char,
+            .put_char => .put_char,
+            .loop_start => .{ .loop_start = undefined },
+            .loop_end => .{ .loop_end = undefined },
+        };
+
+        opt_commands.appendAssumeCapacity(opt_cmd);
+    }
+
+    return try opt_commands.toOwnedSlice(gpa);
+}
+
+// This function replaces all `[-]` with `clear`. Make sure that the same
+// allocator used for `commands` is passed as gpa here. This function is more
+// effective if we first fold multiple `add_cell`s into one `add_cell`.
+fn optimizeClear(gpa: Allocator, commands_ptr: *[]OptCommand) !void {
+    // Because we are going to be looking at several tokens in advance to check
+    // if we can replace certain segments, I am going to write a simple little
+    // finite state automata to handle this process efficiently. Zig's "labeled
+    // switch statement" is perfect for this usecase.
+
+    const commands = commands_ptr.*;
+    var read_idx: usize = 0;
+    var write_idx: usize = 0;
+
+    scan: while (read_idx < commands.len) {
+        // A `[-]` can only occur if there are at least 3 more commands
+        // remaining in the list. This check ensures safe memory access.
+        if (read_idx + 2 < commands.len) {
+            const a = commands[read_idx];
+            const b = commands[read_idx + 1];
+            const c = commands[read_idx + 2];
+
+            if (a == .loop_start and b == .add_cell and c == .loop_end) {
+                // [-], [+], [---], [+++], etc. all work, yet [--] doesn't:
+                if (b.add_cell % 2 == 1) {
+                    commands[write_idx] = .clear;
+                    write_idx += 1;
+                    read_idx += 3;
+                    continue :scan;
+                }
+            }
+        }
+
+        // The code reaches this point if we did not find the needle
+        commands[write_idx] = commands[read_idx];
+        write_idx += 1;
+        read_idx += 1;
+    }
+
+    commands_ptr.* = try gpa.realloc(commands, write_idx);
+}
+
+// Links the `loop_start` and `loop_end` states of OptCommand. This function
+// should be called after all other command morphing functions are complete.
+fn linkLoops(commands: []OptCommand) !void {
+    loop_find: for (commands, 0..) |cmd, pc_idx| {
+        switch (cmd) {
+            .loop_end => {
+                // Search backwards until we find the open to this loop
+                var search: usize = pc_idx;
+
+                // Keep track of the number of nested loops we are in
+                var nest_count: usize = 0;
+                while (search > 0) {
+                    search -= 1;
+
+                    // For each command we search through, we adjust the number
+                    // of nested loops correctly, stopping when we encounter a
+                    // `loop_start` outside of nested loops.
+                    switch (commands[search]) {
+                        .loop_end => nest_count += 1,
+                        .loop_start => {
+                            if (nest_count == 0) {
+
+                                // We have found our goal, update both pointers
+                                commands[pc_idx].loop_end = search;
+                                commands[search].loop_start = pc_idx;
+
+                                // Continue to link the remainder of the loops
+                                continue :loop_find;
+                            } else {
+                                nest_count -= 1;
+                            }
+                        },
+                        else => {},
+                    }
+                }
+
+                // If we have reached this part of the program, then we failed
+                // to find the start of a loop. There are more "]" than "[".
+                return error.UnmatchedLoopClose;
+            },
+            .loop_start => {
+                // Mark all of the `loop_start` commands as pointing to the max
+                // value that a usize could represent. We do this so we can
+                // later check if there is an unmatched loop start that was
+                // never paired with a loop close. We are safe to do this as we
+                // know that we will always reach `loop_start`s here before the
+                // code that searches backwards for the match to a `loop_end`.
+                commands[pc_idx].loop_start = std.math.maxInt(usize);
+            },
             else => {},
         }
     }
-    return result;
-}
 
-fn array_contains(comptime T: type, haystack: []const T, needle: T) bool {
-    for (haystack) |element|
-        if (element == needle)
-            return true;
-    return false;
-}
-
-fn cmd_to_optcmd(cmd: Command, count: usize) OptCommand {
-    switch (cmd) {
-        .incPtr => return .{ .addPtr = count},
-        .decPtr => return .{ .subPtr = count},
-        .incVal => return .{ .addVal = @intCast(count)},
-        .decVal => return .{ .subVal = @intCast(count)},
-        .putChar => return .putChar,
-        .getChar => return .getChar,
-        .openBr => return .{ .openBr = 0 },
-        .closeBr => return .{ .closeBr = 0 },
-    }
-}
-
-fn optimize_code(allocator: std.mem.Allocator, code: std.ArrayList(Command)) !std.ArrayList(OptCommand) {
-    var result = std.ArrayList(OptCommand).init(allocator);
-
-    if (code.items.len == 0) return result;
-
-    // Basically, the goal of the loop is to keep track of repeating repeatable commands and append 
-    // to `result` when a repeatable command is done repeating, and after each non-repeatable
-    // command
-
-    var i: usize = 1;
-    var last_cmd: Command = code.items[0];
-    var count: usize = 1;
-
-    const repeat_cmds: []const Command = &.{Command.incPtr, Command.decPtr, Command.incVal, Command.decVal};
-    while (i < code.items.len) {
-        const cmd = code.items[i];
-        if (cmd == last_cmd and array_contains(Command, repeat_cmds, cmd)) {
-            count += 1;
-            last_cmd = cmd;
-        } else {
-            // Check for `[-]` (biggest culprit of spaghettification)
-            if (last_cmd == Command.openBr and cmd == Command.decVal and code.items[i+1] == Command.closeBr) {
-                try result.append(.zero);
-                i += 2;
-                last_cmd = code.items[i];
-            } else {
-                try result.append(cmd_to_optcmd(last_cmd, count));
-                last_cmd = cmd;
+    for (commands) |cmd| {
+        // These two if statements can be combined with `and`, due to short-
+        // circuiting operators, it would be the same. They are kept separate
+        // here for readability.
+        if (cmd == .loop_start) {
+            if (cmd.loop_start == std.math.maxInt(usize)) {
+                return error.UnmatchedLoopStart;
             }
-            count = 1;
-        }
-        i += 1;
-    }
-    try result.append(cmd_to_optcmd(last_cmd, count));
-
-    // Add jumps to enums
-    var unsolved = std.ArrayList(usize).init(allocator);
-    for (result.items, 0..) |cmd, j| {
-        if (cmd == .openBr) {
-            try unsolved.append(j);
-        } else if (cmd == .closeBr) {
-            const connection = unsolved.pop().?;
-            result.items[connection] = .{.openBr = j};
-            result.items[j] = .{.closeBr = connection};
         }
     }
-
-    return result;
 }
 
-fn execute(prg: std.ArrayList(OptCommand)) !void {
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
+fn execute(gpa: Allocator, commands: []const OptCommand) !void {
+    const unbuffered_stdout = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(unbuffered_stdout);
     const stdout = bw.writer();
 
-    var prg_head: usize = 0;
-    var mem = std.mem.zeroes([65536]u8);
-    var mem_ptr: usize = 0;
+    var pc: usize = 0;
+    var ptr: u16 = 0;
 
-    while (prg_head < prg.items.len) {
-        switch (prg.items[prg_head]) {
-            .addPtr => |count| mem_ptr += count,
-            .subPtr => |count| mem_ptr -= count,
-            .addVal => |count| mem[mem_ptr] +%= count,
-            .subVal => |count| mem[mem_ptr] -%= count,
-            .zero => mem[mem_ptr] = 0,
-            .putChar => {
-                try stdout.print("{c}", .{mem[mem_ptr]});
-                if (mem[mem_ptr] == '\n') {
-                    try bw.flush();
-                }
+    const mem = try gpa.alloc(u8, 1 << 16);
+    defer gpa.free(mem);
+
+    while (pc < commands.len) : (pc += 1) {
+        switch (commands[pc]) {
+            .add_cell => |amt| mem[ptr] +%= amt,
+            .add_ptr => |amt| ptr +%= amt,
+            .clear => mem[ptr] = 0,
+            .get_char => {
+                // BF may rely on the user knowing what has been printed for
+                // certain same-line inputs. Thus, we flush the output here.
+                try bw.flush();
+                // TODO: read a byte from unbuffered stdin
             },
-            .getChar => {},
-            .openBr => |connection| {
-                if (mem[mem_ptr] == 0) {
-                    prg_head = connection;
-                }
+            .put_char => {
+                try stdout.writeByte(mem[ptr]);
+                if (mem[ptr] == '\n') try bw.flush();
             },
-            .closeBr => |connection| {
-                if (mem[mem_ptr] != 0) {
-                    prg_head = connection;
-                }
+            .loop_start => |end_idx| {
+                if (mem[ptr] == 0) pc = end_idx;
+            },
+            .loop_end => |start_idx| {
+                if (mem[ptr] != 0) pc = start_idx;
             },
         }
-        prg_head += 1;
     }
 }
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+    const gpa = std.heap.smp_allocator;
 
     // Process command-line arguments
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try std.process.argsAlloc(gpa);
+    defer std.process.argsFree(gpa, args);
     if (args.len < 2) {
         std.debug.print("Usage: {s} <filename>\n", .{args[0]});
-        return;
+        std.process.exit(1);
     }
-    const filename = args[1];
 
     // Open file
-    const cwd = std.fs.cwd();
-    const file = try cwd.openFile(filename, .{});
-    const code = try file.readToEndAlloc(allocator, 65535);
-    defer allocator.free(code);
+    const source_file = try std.fs.cwd().openFile(args[1], .{});
+    defer source_file.close();
 
-    const program = try parse_code(allocator, code);
-    const opt_program = try optimize_code(allocator, program);
+    // Personally I don't mind it if we support large programs
+    const limit = std.math.maxInt(usize);
+    const code = try source_file.readToEndAlloc(gpa, limit);
+    defer gpa.free(code);
 
-    try execute(opt_program);
+    // Notice how all the memory is clearly annotated with defer to free it at
+    // the end of the program. We can tell the allocator to free memory right
+    // after we use it, but the code looks a bit messier so I won't bother.
+
+    const tokens = try tokenize(gpa, code);
+    defer gpa.free(tokens);
+
+    var commands = try mapCommands(gpa, tokens);
+    defer gpa.free(commands);
+
+    try optimizeClear(gpa, &commands);
+
+    // TODO: here would be a good spot to switch on the errors and return
+    // some more readable error for invalid BF code (loops not matching).
+    try linkLoops(commands);
+
+    try execute(gpa, commands);
 }
-
