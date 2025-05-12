@@ -44,7 +44,7 @@ Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running
 | C-aot | 0.991 |
 | JavaScript (nodejs) | 43.983 |
 | Python-jit | 1:31.953 |
-| Rust | 6.786 |
+| Rust | 6.624 |
 | Zig | 8.010 |
 
 ## Useful Resources

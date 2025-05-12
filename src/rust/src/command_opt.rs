@@ -7,6 +7,7 @@ pub enum CommandOpt {
     PutChar,
     GetChar,
     Zero,
+    LoopForever,
     OpenBr(usize),
     CloseBr(usize),
 }
@@ -57,13 +58,26 @@ impl ParseState {
                 self.result.push(CommandOpt::OpenBr(0));
             }
             Command::CloseBr => {
-                self.apply_counts();
                 let conn = match self.unres_brack.pop() {
                     Some(val) => val,
                     None => return Err("Brackets not balanced. Unexpected ']' found."),
                 };
-                self.result[conn] = CommandOpt::OpenBr(self.result.len());
-                self.result.push(CommandOpt::CloseBr(conn));
+                // Check for `[-]`
+                if let (ParseCounts::ChVal(amount), CommandOpt::OpenBr(_)) =
+                    (&self.counts, self.result.last().unwrap())
+                {
+                    let _ = self.result.pop();
+                    if amount.rem_euclid(2) == 1 {
+                        self.result.push(CommandOpt::Zero);
+                    } else {
+                        self.result.push(CommandOpt::LoopForever);
+                    }
+                    self.counts = ParseCounts::None;
+                } else {
+                    self.apply_counts();
+                    self.result[conn] = CommandOpt::OpenBr(self.result.len());
+                    self.result.push(CommandOpt::CloseBr(conn));
+                }
             }
         }
         Ok(())
@@ -102,9 +116,12 @@ impl ParseState {
         };
     }
 
-    pub fn get_result(&mut self) -> Vec<CommandOpt> {
+    pub fn get_result(&mut self) -> Result<Vec<CommandOpt>, &'static str> {
         self.apply_counts();
-        self.result.clone()
+        if self.unres_brack.len() > 0 {
+            return Err("Unclosed '['");
+        }
+        Ok(self.result.clone())
     }
 }
 
@@ -113,7 +130,7 @@ fn optimize_prg(prg: &[Command]) -> Result<Vec<CommandOpt>, &'static str> {
     for cmd in prg {
         state.feed(cmd)?;
     }
-    return Ok(state.get_result());
+    state.get_result()
 }
 
 pub fn execute(prg: &Vec<CommandOpt>) -> Result<(), &'static str> {
@@ -165,6 +182,11 @@ pub fn execute(prg: &Vec<CommandOpt>) -> Result<(), &'static str> {
                 }
             }
             CommandOpt::Zero => mem[mem_ptr] = 0,
+            CommandOpt::LoopForever => {
+                if mem[mem_ptr] != 0 {
+                    prg_head -= 1;
+                }
+            }
         }
         prg_head += 1;
     }

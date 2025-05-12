@@ -12,6 +12,6 @@ By Preston Corless
 ## Performance
 
 - Much safer than the C implementation
-- Thanks to some nice optimization techniques, can run `/bf/mandelbrot.bf` in 6.786 secs on my machine
+- Thanks to some nice optimization techniques, can run `/bf/mandelbrot.bf` in 6.624 secs on my machine
 - Can run `/bf/hanoi.bf` in 0.358 seconds
 
