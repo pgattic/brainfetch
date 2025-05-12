@@ -1,11 +1,9 @@
 use crate::command::Command;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CommandOpt {
-    IncPtr(usize),
-    DecPtr(usize),
-    IncVal(u8),
-    DecVal(u8),
+    ChPtr(isize),
+    ChVal(u8), // Doesn't need to be signed lol XD
     PutChar,
     GetChar,
     Zero,
@@ -17,83 +15,105 @@ pub fn parse(code: &str) -> Result<Vec<CommandOpt>, &'static str> {
     optimize_prg(&crate::command::tokenize(code))
 }
 
-fn optimize_prg(prg: &[Command]) -> Result<Vec<CommandOpt>, &'static str> {
-    let mut result = Vec::new();
-    let mut head = 0;
-    let mut unres_brack: Vec<usize> = Vec::new();
+struct ParseState {
+    counts: ParseCounts,
+    unres_brack: Vec<usize>,
+    result: Vec<CommandOpt>,
+}
 
-    while head < prg.len() {
-        if prg.len() > head + 2 && prg[head..head+2] == [Command::OpenBr, Command::DecPtr, Command::CloseBr] {
-            result.push(CommandOpt::Zero);
-            head += 3;
-            continue;
+/// Data structore to store the current state of parsing the code stream.
+enum ParseCounts {
+    ChPtr(isize),
+    ChVal(isize),
+    None,
+}
+
+impl ParseState {
+    pub fn new() -> Self {
+        Self {
+            counts: ParseCounts::None,
+            unres_brack: Vec::new(),
+            result: Vec::new(),
         }
-        match prg[head] {
-            Command::IncPtr => {
-                let mut incs = 1;
-                for cmd in &prg[head+1..] {
-                    if *cmd == Command::IncPtr {
-                        incs += 1;
-                    } else {break};
-                }
-                head += incs as usize;
-                result.push(CommandOpt::IncPtr(incs));
-            },
-            Command::DecPtr => {
-                let mut decs = 1;
-                for cmd in &prg[head+1..] {
-                    if *cmd == Command::DecPtr {
-                        decs += 1;
-                    } else {break};
-                }
-                head += decs as usize;
-                result.push(CommandOpt::DecPtr(decs));
-            },
-            Command::IncVal => {
-                let mut incs = 1;
-                for cmd in &prg[head+1..] {
-                    if *cmd == Command::IncVal {
-                        incs += 1;
-                    } else {break};
-                }
-                head += incs as usize;
-                result.push(CommandOpt::IncVal(incs));
-            },
-            Command::DecVal => {
-                let mut decs = 1;
-                for cmd in &prg[head+1..] {
-                    if *cmd == Command::DecVal {
-                        decs += 1;
-                    } else {break};
-                }
-                head += decs as usize;
-                result.push(CommandOpt::DecVal(decs));
-            },
-            Command::PutChar => { result.push(CommandOpt::PutChar); head += 1; },
-            Command::GetChar => { result.push(CommandOpt::GetChar); head += 1; },
+    }
+
+    pub fn feed(&mut self, cmd: &Command) -> Result<(), &'static str> {
+        match cmd {
+            Command::IncPtr => self.ch_ptr(1),
+            Command::DecPtr => self.ch_ptr(-1),
+            Command::IncVal => self.ch_val(1),
+            Command::DecVal => self.ch_val(-1),
+            Command::PutChar => {
+                self.apply_counts();
+                self.result.push(CommandOpt::PutChar);
+            }
+            Command::GetChar => {
+                self.apply_counts();
+                self.result.push(CommandOpt::GetChar);
+            }
             Command::OpenBr => {
-                unres_brack.push(result.len());
-                result.push(CommandOpt::OpenBr(0)); // 0 is TEMPORARY (and an invalid runtime value)
-                head += 1;
-            },
+                self.apply_counts();
+                self.unres_brack.push(self.result.len());
+                self.result.push(CommandOpt::OpenBr(0));
+            }
             Command::CloseBr => {
-                match unres_brack.pop() {
-                    Some(br_match) => {
-                        result[br_match] = CommandOpt::OpenBr(result.len());
-                        result.push(CommandOpt::CloseBr(br_match));
-                        head += 1;
-                    },
-                    None => return Err("Brackets not balanced. Unexpected ']' found.")
-                }
-            },
+                self.apply_counts();
+                let conn = match self.unres_brack.pop() {
+                    Some(val) => val,
+                    None => return Err("Brackets not balanced. Unexpected ']' found."),
+                };
+                self.result[conn] = CommandOpt::OpenBr(self.result.len());
+                self.result.push(CommandOpt::CloseBr(conn));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn ch_ptr(&mut self, count: isize) {
+        if let ParseCounts::ChPtr(amount) = self.counts {
+            self.counts = ParseCounts::ChPtr(amount + count);
+        } else {
+            self.apply_counts();
+            self.counts = ParseCounts::ChPtr(count);
         }
     }
 
-    if unres_brack.len() > 0 {
-        return Err("Brackets not balanced. Extra '[' found.")
+    pub fn ch_val(&mut self, count: isize) {
+        if let ParseCounts::ChVal(amount) = self.counts {
+            self.counts = ParseCounts::ChVal(amount + count);
+        } else {
+            self.apply_counts();
+            self.counts = ParseCounts::ChVal(count);
+        }
     }
 
-    Ok(result)
+    pub fn apply_counts(&mut self) {
+        match self.counts {
+            ParseCounts::ChPtr(count) => {
+                self.result.push(CommandOpt::ChPtr(count));
+                self.counts = ParseCounts::None;
+            }
+            ParseCounts::ChVal(count) => {
+                self.result
+                    .push(CommandOpt::ChVal(count.rem_euclid(256) as u8));
+                self.counts = ParseCounts::None;
+            }
+            ParseCounts::None => {}
+        };
+    }
+
+    pub fn get_result(&mut self) -> Vec<CommandOpt> {
+        self.apply_counts();
+        self.result.clone()
+    }
+}
+
+fn optimize_prg(prg: &[Command]) -> Result<Vec<CommandOpt>, &'static str> {
+    let mut state = ParseState::new();
+    for cmd in prg {
+        state.feed(cmd)?;
+    }
+    return Ok(state.get_result());
 }
 
 pub fn execute(prg: &Vec<CommandOpt>) -> Result<(), &'static str> {
@@ -103,39 +123,47 @@ pub fn execute(prg: &Vec<CommandOpt>) -> Result<(), &'static str> {
 
     while prg_head < prg.len() {
         match prg[prg_head] {
-            CommandOpt::IncPtr(amt) => {
-                mem_ptr += amt;
-                while mem_ptr >= mem.len() { mem.push(0) } // Dynamically growing memory
-            },
-            CommandOpt::DecPtr(amt) => {
-                match mem_ptr.checked_sub(amt) {
-                    Some(val) => mem_ptr = val,
-                    None => return Err("Pointer underflow (attempted to move read/write head below 0)")
+            CommandOpt::ChPtr(amt) => {
+                if amt >= 0 {
+                    mem_ptr += amt as usize;
+                    while mem_ptr >= mem.len() {
+                        mem.push(0)
+                    } // Dynamically growing memory
+                } else {
+                    match mem_ptr.checked_sub(-amt as usize) {
+                        Some(val) => {
+                            mem_ptr = val;
+                        }
+                        None => {
+                            return Err(
+                                "Pointer underflow (attempted to move read/write head below 0)",
+                            );
+                        }
+                    }
                 }
-            },
-            CommandOpt::IncVal(amt) => mem[mem_ptr] = mem[mem_ptr].wrapping_add(amt),
-            CommandOpt::DecVal(amt) => mem[mem_ptr] = mem[mem_ptr].wrapping_sub(amt),
+            }
+            CommandOpt::ChVal(amt) => mem[mem_ptr] = mem[mem_ptr].wrapping_add(amt),
             CommandOpt::PutChar => match char::from_u32(mem[mem_ptr] as u32) {
                 Some(val) => print!("{}", val),
                 None => return Err("Invalid char printed"),
-            }
+            },
             CommandOpt::GetChar => {
                 use std::io::Read;
                 let mut buffer = [0u8; 1];
                 // Throw away error (if no stdin, just keep it at 0)
                 let _ = std::io::stdin().read_exact(&mut buffer);
                 mem[mem_ptr] = buffer[0];
-            },
+            }
             CommandOpt::OpenBr(target) => {
                 if mem[mem_ptr] == 0 {
                     prg_head = target;
                 }
-            },
+            }
             CommandOpt::CloseBr(target) => {
                 if mem[mem_ptr] != 0 {
                     prg_head = target;
                 }
-            },
+            }
             CommandOpt::Zero => mem[mem_ptr] = 0,
         }
         prg_head += 1;
@@ -143,4 +171,3 @@ pub fn execute(prg: &Vec<CommandOpt>) -> Result<(), &'static str> {
 
     Ok(())
 }
-

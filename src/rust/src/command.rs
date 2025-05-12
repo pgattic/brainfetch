@@ -1,5 +1,4 @@
-
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     IncPtr,
     DecPtr,
@@ -22,12 +21,14 @@ impl Command {
             ',' => Some(Command::GetChar),
             '[' => Some(Command::OpenBr),
             ']' => Some(Command::CloseBr),
-            _ => None
+            _ => None,
         }
     }
 }
 
 pub fn tokenize(code: &str) -> Vec<Command> {
-    return code.chars().filter_map(|ch| Command::from_char(ch)).collect();
+    return code
+        .chars()
+        .filter_map(|ch| Command::from_char(ch))
+        .collect();
 }
-
