@@ -1,3 +1,4 @@
+use cranelift_module::ModuleResult;
 use crate::command_opt::CommandOpt;
 
 fn put_char(ch: u8) {
@@ -15,17 +16,19 @@ fn get_char() -> u8 {
     buffer[0]
 }
 
-pub fn jit_execute(program: &Vec<CommandOpt>) {
+/// Given a BF program represented with a Vec of the `CommandOpt` data structure, compile it into
+/// native code to be executed on the host machine.
+pub fn jit_compile(program: &Vec<CommandOpt>) -> ModuleResult<fn(*mut u8, *mut usize)> {
     use cranelift::prelude::*;
     use cranelift_module::{Linkage, Module};
     use cranelift_jit::{JITBuilder, JITModule};
 
     // Create JIT builder and module
-    let mut builder = JITBuilder::new(cranelift_module::default_libcall_names()).unwrap();
+    let mut builder = JITBuilder::new(cranelift_module::default_libcall_names())?;
 
-    // Register host functions here
-    builder.symbol("put_char", put_char as *const u8 as *const _);
-    builder.symbol("get_char", get_char as *const u8 as *const _);
+    // Register host functions
+    builder.symbol("put_char", put_char as *const u8);
+    builder.symbol("get_char", get_char as *const u8);
 
     let mut module = JITModule::new(builder);
 
@@ -40,18 +43,16 @@ pub fn jit_execute(program: &Vec<CommandOpt>) {
     put_sig.params.push(AbiParam::new(types::I8)); // takes one u8
     put_sig.returns.push(AbiParam::new(types::I32)); // optional (Cranelift requires a return type, but you can ignore it)
 
-    let put_func_id = module.declare_function("put_char", Linkage::Import, &put_sig).unwrap();
+    let put_func_id = module.declare_function("put_char", Linkage::Import, &put_sig)?;
 
     let mut get_sig = module.make_signature();
     get_sig.returns.push(AbiParam::new(types::I8)); // returns u8
 
-    let get_func_id = module.declare_function("get_char", Linkage::Import, &get_sig).unwrap();
+    let get_func_id = module.declare_function("get_char", Linkage::Import, &get_sig)?;
 
 
     // Declare the function
-    let func_id = module
-        .declare_function("execute", Linkage::Export, &sig)
-        .unwrap();
+    let func_id = module.declare_function("execute", Linkage::Export, &sig)?;
 
     // Define the function body
     let mut ctx = module.make_context();
@@ -140,23 +141,13 @@ pub fn jit_execute(program: &Vec<CommandOpt>) {
     builder.finalize();
 
     // Define function body in the module
-    module.define_function(func_id, &mut ctx).unwrap();
+    module.define_function(func_id, &mut ctx)?;
     module.clear_context(&mut ctx);
     let _ = module.finalize_definitions();
 
 
     // Get a callable function pointer
     let code_ptr = module.get_finalized_function(func_id);
-    let func = unsafe {
-        std::mem::transmute::<_, fn(*mut u8, *mut usize)>(code_ptr)
-    };
-
-    const TAPE_SIZE: usize = 30_000;
-    let mut memory = vec![0u8; TAPE_SIZE];
-    let mut mem_ptr: usize = 0;
-
-    // Call the JIT function
-    func(memory.as_mut_ptr(), &mut mem_ptr as *mut usize);
-
+    Ok(unsafe { std::mem::transmute::<*const u8, fn(*mut u8, *mut usize)>(code_ptr) })
 }
 
