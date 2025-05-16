@@ -34,18 +34,24 @@ There are a few different ways to create a BrainF*** interpreter, and my impleme
 
 ## Performance
 
-Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running Arch Linux.
+Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running Arch Linux, and executing `bf/mandelbrot.bf`.
 
-`mandelbrot.bf`:
+### Interpreters/JITs
 
 | Language | Time |
 | - | -:|
 | C | 41.715 |
-| C-aot | 0.991 |
 | JavaScript (nodejs) | 43.983 |
-| Python-jit | 1:31.953 |
+| Python-JIT | 1:31.953 |
 | Rust | 6.624 |
+| Rust (Cranelift) | 4.087 |
 | Zig | 8.010 |
+
+### AOT (Ahead-of-time) compilers
+
+| Language | Compile Time | Run Time | Binary Size |
+| - | -:| -:| -:|
+| C | unknown | 0.991 | unknown |
 
 ## Useful Resources
 

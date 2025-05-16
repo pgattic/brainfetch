@@ -1,0 +1,10 @@
+[package]
+name = "brainfetch"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.32", features = ["derive"] }
+cranelift = "0.119.0"
+cranelift-jit = "0.119.0"
+cranelift-module = "0.119.0"
