@@ -41,6 +41,7 @@ Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running
 | Language | Time |
 | - | -:|
 | C | 41.715 |
+| C# (needs work) | 4:23.246 |
 | JavaScript (nodejs) | 43.983 |
 | Python-JIT | 1:31.953 |
 | Rust | 6.624 |
