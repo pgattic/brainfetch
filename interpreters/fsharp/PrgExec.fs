@@ -1,9 +1,9 @@
 
 module PrgExec
 
-let execute program jumpTable =
-  let rec executeLoop (program: Command.Command list) (jt: Map<int, int>) pc tape =
-    match List.tryItem pc program with
+let execute (program: Command.Command list) jumpTable =
+  let rec executeLoop (program: Command.Command array) (jt: Map<int, int>) pc tape =
+    match Array.tryItem pc program with
     | None -> ()
     | Some instr ->
       match instr with
@@ -31,5 +31,5 @@ let execute program jumpTable =
           else
             executeLoop program jt (Map.find pc jt + 1) tape
 
-  executeLoop program jumpTable 0 MemTape.newMemTape
+  executeLoop (List.toArray program) jumpTable 0 MemTape.newMemTape
 

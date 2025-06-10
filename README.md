@@ -36,12 +36,15 @@ There are a few different ways to create a BrainF*** interpreter, and my impleme
 
 Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running Arch Linux, and executing `bf/mandelbrot.bf`.
 
+Also note that these implementations perform various levels of optimization, some being more complete than others. They are not necessarily an evaluation of the speed of the language.
+
 ### Interpreters/JITs
 
 | Language | Time |
 | - | -:|
 | C | 41.715 |
-| C# (needs work) | 4:23.246 |
+| C# | 4:23.246 |
+| F# | 6:23.604 |
 | JavaScript (nodejs) | 43.983 |
 | Python-JIT | 1:31.953 |
 | Rust | 6.624 |
@@ -52,7 +55,7 @@ Tests are run on a ThinkPad T480 with an Intel Core i5-8250U @ 3.40 GHz, running
 
 | Language | Compile Time | Run Time | Binary Size |
 | - | -:| -:| -:|
-| C | unknown | 0.991 | unknown |
+| Python -> C -> native | 2.867 | 1.054 | 40184 |
 
 ## Useful Resources
 

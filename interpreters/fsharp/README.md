@@ -11,6 +11,6 @@ By Preston Corless
 
 ## Performance
 
-- Has quite a few places where performance can be improved upon, does not optimize currently.
-- Has terrible performance, would take several minutes to complete just the first line of `hanoi.bf` even in release mode.
+- Can run `/bf/mandelbrot.bf` in 6:23.604
+- Can run `/bf/hanoi.bf` in 16.967
 
