@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Command.fs" />
+    <Compile Include="MemTape.fs" />
+    <Compile Include="PrgExec.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+</Project>
