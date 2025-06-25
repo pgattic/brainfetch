@@ -12,7 +12,7 @@ pub enum CommandOpt {
     CloseBr(usize),
 }
 
-pub fn parse(code: &str) -> Result<Vec<CommandOpt>, &'static str> {
+pub fn tokenize(code: &str) -> Result<Vec<CommandOpt>, &'static str> {
     optimize_prg(&crate::command::tokenize(code))
 }
 

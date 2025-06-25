@@ -48,7 +48,7 @@ Also note that these implementations perform various levels of optimization, som
 | JavaScript (nodejs) | 43.983 |
 | Python-JIT | 1:31.953 |
 | Rust | 6.624 |
-| Rust (Cranelift) | 4.087 |
+| Rust (Cranelift) | 3.672 |
 | Zig | 8.010 |
 
 ### AOT (Ahead-of-time) compilers

@@ -15,6 +15,6 @@ The upside to this approach is that after the BF code is analyzed, the computer 
 
 ## Performance
 
-- Can run `/bf/mandelbrot.bf` in 4.087 secs on my machine
-- Can run `/bf/hanoi.bf` in 0.466 seconds
+- Can run `/bf/mandelbrot.bf` in 3.672 secs on my machine
+- Can run `/bf/hanoi.bf` in 0.535 seconds
 

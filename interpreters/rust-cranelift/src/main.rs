@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::PathBuf;
 use clap::Parser;
 
@@ -16,7 +15,7 @@ struct Cli {
 fn main() -> Result<(), &'static str> {
     let cli = Cli::parse();
 
-    let contents: String = match fs::read_to_string(&cli.file) {
+    let contents: String = match std::fs::read_to_string(&cli.file) {
         Ok(data) => data,
         Err(err) => {
             eprintln!("Can't open file '{}': {}", cli.file.to_string_lossy(), err);
@@ -24,22 +23,22 @@ fn main() -> Result<(), &'static str> {
         }
     };
 
-    let program = command_opt::parse(&contents)?;
+    let tokens = command_opt::tokenize(&contents)?;
 
-    let execute = match jit::jit_compile(&program) {
+    let program = match jit::jit_compile(&tokens) {
         Ok(result) => result,
         Err(error) => {
-            println!("{}", error);
+            eprintln!("{}", error);
             return Err("Failed to generate JIT program.")
         }
     };
 
-    const TAPE_SIZE: usize = 30_000;
-    let mut memory = [0u8; TAPE_SIZE];
+    // Set up starting state of program
+    let mut memory = [0u8; 30_000];
     let mut mem_ptr: usize = 0;
 
     // Call the JIT function
-    execute(memory.as_mut_ptr(), &mut mem_ptr as *mut usize);
+    program(memory.as_mut_ptr(), &mut mem_ptr as *mut usize);
 
     Ok(())
 }
