@@ -46,6 +46,7 @@ Also note that these implementations perform various levels of optimization, som
 | C# | 4:23.246 |
 | F# | 6:23.604 |
 | JavaScript (nodejs) | 43.983 |
+| Nushell | days |
 | Python-JIT | 1:31.953 |
 | Rust | 6.624 |
 | Rust (Cranelift) | 3.672 |
