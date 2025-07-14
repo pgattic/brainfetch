@@ -101,6 +101,7 @@ function flushOutput() {
       case CLOSE_BR: result += `}\n`; break;
     }
   }
+  result += `flushOutput();`
   return new Function(result);
 }
 

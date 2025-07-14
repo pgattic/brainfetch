@@ -11,6 +11,6 @@ By Preston Corless
 
 ## Performance
 
-- Completes `mandelbrot.bf` in 29.891
+- Completes `mandelbrot.bf` in 24.274
 - Completes `hanoi.bf` in 1.471
 

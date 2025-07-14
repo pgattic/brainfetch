@@ -14,8 +14,8 @@ This program is currently meant to be run within the Nushell REPL.
 
 ## Performance
 
-This program currently takes over a minute to display just the first character of `/bf/mandelbrot.bf`. The main bottleneck is that it copies the entire memory array upon every memory update, which is due to Nushell's focus on immutable data.
+This program currently takes over a minute to display just the first character of `/bf/mandelbrot.bf`. The main bottleneck is that it copies the entire memory array upon every memory update, which is a result of Nushell's focus on immutable data.
 
-- Can run `/bf/hello.bf` in 0.663
-- Can run `/bf/ascii.bf` in 0.609
+- Can run `/bf/hello.bf` in 0.138
+- Can run `/bf/ascii.bf` in 0.023
 

@@ -144,6 +144,7 @@ function executeProgram(program) {
     }
     prgHead++;
   }
+  flushOutput();
 }
 
 function main() {

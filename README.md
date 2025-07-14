@@ -3,16 +3,6 @@
 
 This is a collection of BrainF*** interpreters and compilers I wrote in various languages, both as a test of my abilities and as a test of the general performance of the languages in everyday computation tasks.
 
-The implementations can be found in the `src/` directory.
-
-Current implementations include:
-
-- C (most features)
-- C-compiled (fastest)
-- Python
-- Rust (safest)
-- Zig
-
 ## Implementation Methods
 
 There are a few different ways to create a BrainF*** interpreter, and my implementations typically start as one but incrementally convert to another:
@@ -45,11 +35,12 @@ Also note that these implementations perform various levels of optimization, som
 | C | 41.715 |
 | C# | 4:23.246 |
 | F# | 6:23.604 |
-| JavaScript (nodejs) | 43.983 |
+| JavaScript (Node.js) | 24.274 |
+| JavaScript-jit (Bun) | 3.932 |
 | Nushell | days |
 | Python-JIT | 1:31.953 |
 | Rust | 6.624 |
-| Rust (Cranelift) | 3.672 |
+| Rust (Cranelift) | 🏁 3.672 |
 | Zig | 8.010 |
 
 ### AOT (Ahead-of-time) compilers
