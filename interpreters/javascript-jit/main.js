@@ -71,79 +71,42 @@ function optimizeCode(code) {
 
   result.push([last_cmd, count]);
 
-// Add jumps to brackets
-  let unsolved = [];
-  for (let i = 0; i < result.length; i++) {
-    const cmd = result[i][0];
-    if (cmd === OPEN_BR) {
-      unsolved.push(i);
-    } else if (cmd === CLOSE_BR) {
-      const connection = unsolved.pop();
-      result[connection][1] = i;
-      result[i][1] = connection;
-    }
-  }
-
-  if (unsolved.length > 0) {
-    console.log("shoot");
-  }
-
   return result;
 }
 
+function jitProgram(program) {
+  let result = `
+let memory = new Array(30_000).fill(0);
+let memPtr = 0;
+let prgHead = 0;
+let outputBuffer = "";
+
+function flushOutput() {
+  process.stdout.write(outputBuffer);
+  outputBuffer = "";
+}
+
+`;
+  for (let i = 0; i < program.length; i++) {
+    const [cmd, count] = program[i];
+    switch (cmd) {
+      case INC_PTR:  result += `memPtr += ${count};\n`; break;
+      case DEC_PTR:  result += `memPtr -= ${count};\n`; break;
+      case INC_VAL:  result += `memory[memPtr] = (memory[memPtr] + ${count}) % 256;\n`; break;
+      case DEC_VAL:  result += `memory[memPtr] = (memory[memPtr] + 256 - ${count}) % 256;\n`; break;
+      case ZERO:     result += `memory[memPtr] = 0;\n`; break;
+      case PUT_CHAR: result += `outputBuffer += String.fromCharCode(memory[memPtr]); if (memory[memPtr] == 0x0A) { flushOutput() }\n`; break;
+      case GET_CHAR: result += `{ flushOutput(); const buf = Buffer.alloc(1); const bytes = require('fs').readSync(0, buf, 0, 1, null); memory[memPtr] = bytes > 0 ? buf[0] : 0; }\n`; break;
+      case OPEN_BR:  result += `while (memory[memPtr] != 0) {\n`; break;
+      case CLOSE_BR: result += `}\n`; break;
+    }
+  }
+  return new Function(result);
+}
 
 function executeProgram(program) {
-  function flushOutput() {
-    process.stdout.write(outputBuffer);
-    outputBuffer = "";
-  }
-  let memory = new Array(30_000).fill(0);
-  let memPtr = 0;
-  let prgHead = 0;
-  let outputBuffer = "";
-
-  while (prgHead < program.length) {
-    const [cmd, count] = program[prgHead];
-    switch (cmd) {
-      case INC_PTR:
-        memPtr += count;
-        break;
-      case DEC_PTR:
-        memPtr -= count;
-        break;
-      case INC_VAL:
-        memory[memPtr] = (memory[memPtr] + count) % 256;
-        break;
-      case DEC_VAL:
-        memory[memPtr] = (memory[memPtr] + 256 - count) % 256;
-        break;
-      case ZERO:
-        memory[memPtr] = 0;
-        break;
-      case PUT_CHAR:
-        outputBuffer += String.fromCharCode(memory[memPtr]); if (memory[memPtr] == 0x0A) { flushOutput() }
-        break;
-      case GET_CHAR:
-        {
-          flushOutput();
-          const buf = Buffer.alloc(1);
-          const bytes = require('fs').readSync(0, buf, 0, 1, null);
-          memory[memPtr] = bytes > 0 ? buf[0] : 0;
-        }
-        break;
-      case OPEN_BR:
-        if (memory[memPtr] === 0) {
-          prgHead = count;
-        }
-        break;
-      case CLOSE_BR:
-        if (memory[memPtr] !== 0) {
-          prgHead = count;
-        }
-        break;
-    }
-    prgHead++;
-  }
+  let prog_compiled = jitProgram(program);
+  prog_compiled();
 }
 
 function main() {
