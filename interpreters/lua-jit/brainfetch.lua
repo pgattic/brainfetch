@@ -67,24 +67,6 @@ function optimize_code(code)
 
   table.insert(result, {cmd = prev, num = count});
 
-  -- Add jumps to brackets
-  local unsolved = {};
-  for i = 1, #result do
-    local cmd = result[i].cmd;
-    if cmd == OPENBR then
-      table.insert(unsolved, i)
-    elseif cmd == CLOSEBR then
-      local connection = unsolved[#unsolved]
-      unsolved[#unsolved] = nil
-      result[connection].num = i
-      result[i].num = connection
-    end
-  end
-
-  if #unsolved > 0 then
-    print("shoot")
-  end
-
   return result
 end
 
@@ -107,14 +89,6 @@ function execute(prg)
   loadstring(prog)()
 end
 
-function pretty_print_2d(list)
-  io.write("{")
-  for i = 1, #list do
-    io.write("{ cmd: " .. list[i].cmd .. ", num: " .. list[i].num .. "}, ")
-  end
-  io.write("}\n")
-end
-
 function main()
   local fpath = arg[1]
   if fpath == nil then
@@ -131,8 +105,6 @@ function main()
 
   local program = tokenize(content)
   local opt_prog = optimize_code(program)
-  -- print(table.concat(program, ", "))
-  -- pretty_print_2d(opt_prog)
   execute(opt_prog)
 end
 
