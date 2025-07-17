@@ -33,10 +33,6 @@ function optimize_code(code)
 
   if #code == 0 then return result end
 
-  -- Basically, the goal of the loop is to keep track of repeating repeatable commands and append 
-  -- to `result` when a repeatable command is done repeating, and after each non-repeatable
-  -- command
-
   local i = 2
   local prev = code[1]
   local count = 1
@@ -70,23 +66,31 @@ function optimize_code(code)
   return result
 end
 
-function execute(prg)
-  local prog = "local pc = 1\nlocal mem = {}\nfor i = 1, 30000 do mem[i] = 0 end\nlocal mem_ptr = 1\n"
+function jit_compile(prg)
+  local lines = {
+    "local pc = 1",
+    "local mem = {}",
+    "for i = 1, 30000 do mem[i] = 0 end",
+    "local mem_ptr = 1",
+    "local put = io.write",
+    "local get = function() return string.byte(io.read(1)) or 0 end",
+  }
 
   for pc = 1, #prg do
     curr = prg[pc]
-    if     curr.cmd == INCVAL then prog = prog .. "mem[mem_ptr] = mem[mem_ptr] + " .. curr.num .. " % 256\n"
-    elseif curr.cmd == DECVAL then prog = prog .. "mem[mem_ptr] = mem[mem_ptr] - " .. curr.num .. " % 256\n"
-    elseif curr.cmd == ZERO then prog = prog .. "mem[mem_ptr] = 0\n"
-    elseif curr.cmd == INCPTR then prog = prog .. "mem_ptr = mem_ptr + " .. curr.num .. "\n"
-    elseif curr.cmd == DECPTR then prog = prog .. "mem_ptr = mem_ptr - " .. curr.num .. "\n"
-    elseif curr.cmd == PUTCHAR then prog = prog .. "io.write(string.char(mem[mem_ptr]))\n"
-    elseif curr.cmd == GETCHAR then prog = prog .. "mem[mem_ptr] = string.byte(io.read(1))\n"
-    elseif curr.cmd == OPENBR then prog = prog .. "while mem[mem_ptr] ~= 0 do\n"
-    elseif curr.cmd == CLOSEBR then prog = prog .. "end\n"
+    if     curr.cmd == INCVAL  then table.insert(lines, "mem[mem_ptr] = mem[mem_ptr] + " .. curr.num .. " % 256")
+    elseif curr.cmd == DECVAL  then table.insert(lines, "mem[mem_ptr] = mem[mem_ptr] - " .. curr.num .. " % 256")
+    elseif curr.cmd == ZERO    then table.insert(lines, "mem[mem_ptr] = 0")
+    elseif curr.cmd == INCPTR  then table.insert(lines, "mem_ptr = mem_ptr + " .. curr.num)
+    elseif curr.cmd == DECPTR  then table.insert(lines, "mem_ptr = mem_ptr - " .. curr.num)
+    elseif curr.cmd == PUTCHAR then table.insert(lines, "put(string.char(mem[mem_ptr]))")
+    elseif curr.cmd == GETCHAR then table.insert(lines, "mem[mem_ptr] = get()")
+    elseif curr.cmd == OPENBR  then table.insert(lines, "while mem[mem_ptr] ~= 0 do")
+    elseif curr.cmd == CLOSEBR then table.insert(lines, "end")
     end
   end
-  loadstring(prog)()
+  -- `load` "Compiles" the inputted Lua code and returns a function that executes it
+  return load(table.concat(lines, "\n"))
 end
 
 function main()
@@ -105,7 +109,8 @@ function main()
 
   local program = tokenize(content)
   local opt_prog = optimize_code(program)
-  execute(opt_prog)
+  local fn = jit_compile(opt_prog)
+  fn()
 end
 
 main()
