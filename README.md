@@ -37,7 +37,8 @@ Also note that these implementations perform various levels of optimization, som
 | F# | 6:23.604 |
 | JavaScript (Node.js) | 24.274 |
 | JavaScript-jit (Bun) | 3.932 |
-| Lua (LuaJIT) | 5:01.931 |
+| Lua (LuaJIT) | 1:54.845 |
+| Lua-jit (LuaJIT) | 4.282 |
 | Nushell | days |
 | Python-JIT | 1:31.953 |
 | Rust | 6.624 |

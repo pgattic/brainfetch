@@ -1,5 +1,5 @@
 
-# Nushell Implementation
+# Lua Implementation
 
 BrainF*** Interpreter written in Lua
 
@@ -11,6 +11,6 @@ By Preston Corless
 
 ## Performance
 
-- Can run `/bf/mandelbrot.bf` in 5:01.931
-- Can run `/bf/hanoi.bf` in 9.304
+- Can run `/bf/mandelbrot.bf` in 1:54.845
+- Can run `/bf/hanoi.bf` in 6.561
 

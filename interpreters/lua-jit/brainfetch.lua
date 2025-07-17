@@ -89,31 +89,22 @@ function optimize_code(code)
 end
 
 function execute(prg)
-  local pc = 1
-  local mem = {}
-  for i = 1, 30000 do mem[i] = 0 end
-  local mem_ptr = 1
+  local prog = "local pc = 1\nlocal mem = {}\nfor i = 1, 30000 do mem[i] = 0 end\nlocal mem_ptr = 1\n"
 
-  while pc <= #prg do
+  for pc = 1, #prg do
     curr = prg[pc]
-    if     curr.cmd == INCVAL then mem[mem_ptr] = mem[mem_ptr] + curr.num % 256
-    elseif curr.cmd == DECVAL then mem[mem_ptr] = mem[mem_ptr] - curr.num % 256
-    elseif curr.cmd == ZERO then mem[mem_ptr] = 0
-    elseif curr.cmd == INCPTR then mem_ptr = mem_ptr + curr.num
-    elseif curr.cmd == DECPTR then mem_ptr = mem_ptr - curr.num
-    elseif curr.cmd == PUTCHAR then io.write(string.char(mem[mem_ptr]))
-    elseif curr.cmd == GETCHAR then mem[mem_ptr] = string.byte(io.read(1))
-    elseif curr.cmd == OPENBR then
-      if mem[mem_ptr] == 0 then
-        pc = curr.num
-      end
-    elseif curr.cmd == CLOSEBR then
-      if mem[mem_ptr] ~= 0 then
-        pc = curr.num
-      end
+    if     curr.cmd == INCVAL then prog = prog .. "mem[mem_ptr] = mem[mem_ptr] + " .. curr.num .. " % 256\n"
+    elseif curr.cmd == DECVAL then prog = prog .. "mem[mem_ptr] = mem[mem_ptr] - " .. curr.num .. " % 256\n"
+    elseif curr.cmd == ZERO then prog = prog .. "mem[mem_ptr] = 0\n"
+    elseif curr.cmd == INCPTR then prog = prog .. "mem_ptr = mem_ptr + " .. curr.num .. "\n"
+    elseif curr.cmd == DECPTR then prog = prog .. "mem_ptr = mem_ptr - " .. curr.num .. "\n"
+    elseif curr.cmd == PUTCHAR then prog = prog .. "io.write(string.char(mem[mem_ptr]))\n"
+    elseif curr.cmd == GETCHAR then prog = prog .. "mem[mem_ptr] = string.byte(io.read(1))\n"
+    elseif curr.cmd == OPENBR then prog = prog .. "while mem[mem_ptr] ~= 0 do\n"
+    elseif curr.cmd == CLOSEBR then prog = prog .. "end\n"
     end
-    pc = pc + 1
   end
+  loadstring(prog)()
 end
 
 function pretty_print_2d(list)
