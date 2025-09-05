@@ -13,6 +13,6 @@ Note: This program is timed using `bun` as its JS runtime, which dramatically im
 
 ## Performance
 
-- Completes `mandelbrot.bf` in 3.932
-- Completes `hanoi.bf` in 1.576
+- Completes `mandelbrot.bf` in 3.893
+- Completes `hanoi.bf` in 1.512
 

@@ -105,11 +105,6 @@ function flushOutput() {
   return new Function(result);
 }
 
-function executeProgram(program) {
-  let prog_compiled = jitProgram(program);
-  prog_compiled();
-}
-
 function main() {
   let args = process.argv;
   if (args.length < 3) {
@@ -130,7 +125,8 @@ function main() {
     }
     const program = parseCode(data.toString());
     const optimized = optimizeCode(program);
-    executeProgram(optimized);
+    const prog_compiled = jitProgram(optimized);
+    prog_compiled();
   });
 }
 

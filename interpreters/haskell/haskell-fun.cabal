@@ -1,0 +1,19 @@
+cabal-version:   3.12
+name:            brainfetch
+version:         0.1.0.0
+license:         NONE
+author:          pgattic
+maintainer:      pgattic@gmail.com
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall
+
+executable haskell-fun
+    import:           warnings
+    main-is:          Main.hs
+    other-modules:    Memory, Command, ProgState
+    build-depends:    base ^>=4.18.3.0, containers
+    hs-source-dirs:   app
+    default-language: Haskell2010
