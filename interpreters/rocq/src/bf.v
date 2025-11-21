@@ -135,3 +135,18 @@ Proof. reflexivity. Qed.
 Example quadruple_inc_test :
   get_curr (default_interp [bf_inc; bf_inc; bf_inc; bf_inc]) = Some 4.
 Proof. reflexivity. Qed.
+
+Definition hello_world : bf_program := [
+  bf_inc; bf_inc; bf_inc; bf_inc; bf_inc; bf_inc; bf_inc; bf_inc; bf_loop [bf_next; bf_inc; bf_inc; bf_inc; bf_inc; bf_loop [bf_next; bf_inc; bf_inc; bf_next; bf_inc; bf_inc; bf_inc; bf_next; bf_inc; bf_inc; bf_inc; bf_next; bf_inc; bf_prev; bf_prev; bf_prev; bf_prev; bf_dec]; bf_next; bf_inc; bf_next; bf_inc; bf_next; bf_dec; bf_next; bf_next; bf_inc; bf_loop [bf_prev]; bf_prev; bf_dec]; bf_next; bf_next; bf_output; bf_next; bf_dec; bf_dec; bf_dec; bf_output; bf_inc; bf_inc; bf_inc; bf_inc; bf_inc; bf_inc; bf_inc; bf_output; bf_output; bf_inc; bf_inc; bf_inc; bf_output; bf_next; bf_next; bf_output; bf_prev; bf_dec; bf_output; bf_prev; bf_output; bf_inc; bf_inc; bf_inc; bf_output; bf_dec; bf_dec; bf_dec; bf_dec; bf_dec; bf_dec; bf_output; bf_dec; bf_dec; bf_dec; bf_dec; bf_dec; bf_dec; bf_dec; bf_dec; bf_output; bf_next; bf_next; bf_inc; bf_output; bf_next; bf_inc; bf_inc; bf_output
+].
+
+From Stdlib Require Import Ascii String List.
+
+Definition output_text (state : option bf_state) : option string :=
+  match state with
+  | None => None
+  | Some s => Some (string_of_list_ascii (map ascii_of_nat (rev (output s))))
+  end.
+
+(* Works!!! *)
+Eval compute in output_text (default_interp hello_world).
