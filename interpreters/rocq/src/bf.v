@@ -74,31 +74,64 @@ Definition output_cell (s : bf_state) : bf_state := {|
   output := curr (tape s) :: output s
 |}.
 
-Fixpoint interp (p : bf_program) (s : bf_state) (fuel : nat) : bf_state :=
+Definition bf_default_fuel := 5000.
+
+Fixpoint interp (p : bf_program) (s : bf_state) (fuel : nat) {struct fuel} : option bf_state :=
   match fuel, p with
-  | O, nil => s
-  | O, _ => s
-  | _, nil => s
-  | S (fuel'), h :: t => match h with
-    | bf_inc => interp t {| tape := inc_cell (tape s); input := input s; output := output s |} fuel'
-    | bf_dec => interp t {| tape := dec_cell (tape s); input := input s; output := output s |} fuel'
-    | bf_next => interp t {| tape := move_right (tape s); input := input s; output := output s |} fuel'
-    | bf_prev => interp t {| tape := move_left (tape s); input := input s; output := output s |} fuel'
-    | bf_input => interp t (input_cell s) fuel'
-    | bf_output => interp t (output_cell s) fuel'
-    | bf_loop _ => interp t s fuel' (* TODO *)
+  | O, nil => Some s
+  | O, _ => None
+  | _, nil => Some s
+  | S (fuel'), h :: t => match interp_single h s fuel' with
+    | Some s' => interp t s' fuel'
+    | None => None
+    end
+  end
+
+with interp_single (c : bf_command) (s : bf_state) (fuel : nat) {struct fuel} : option bf_state :=
+  match fuel with
+  | O => None
+  | S fuel' =>
+    match c with
+    | bf_inc => Some {| tape := inc_cell (tape s); input := input s; output := output s |}
+    | bf_dec => Some {| tape := dec_cell (tape s); input := input s; output := output s |}
+    | bf_next => Some {| tape := move_right (tape s); input := input s; output := output s |}
+    | bf_prev => Some {| tape := move_left (tape s); input := input s; output := output s |}
+    | bf_input => Some (input_cell s)
+    | bf_output => Some (output_cell s)
+    | bf_loop body => let fix loop (s : bf_state) (fuel : nat) :=
+        match fuel with
+        | O => None
+        | S (fuel') => if (curr (tape s)) =? 0 then Some s else
+          match interp body s fuel' with
+          | None => None
+          | Some s' => loop s' fuel'
+          end
+        end
+        in loop s fuel'
     end
   end.
-
-Definition bf_default_fuel := 5000.
 
 Definition default_interp (prg : bf_program) :=
   interp prg bf_default_state bf_default_fuel.
 
+Definition get_tape (state : option bf_state) : option bf_tape :=
+  match state with
+  | Some s => Some (tape s)
+  | None => None
+  end.
+
+Definition get_curr (state : option bf_state) : option nat :=
+  match state with
+  | Some s => Some (curr (tape s))
+  | None => None
+  end.
+
+(* Theorems And Tests *)
+
 Example inc_test :
-  curr (tape (default_interp [bf_inc])) = 1.
+  get_curr (default_interp [bf_inc]) = Some 1.
 Proof. reflexivity. Qed.
 
-Example quidruple_inc_test :
-  curr (tape (default_interp [bf_inc; bf_inc; bf_inc; bf_inc])) = 4.
+Example quadruple_inc_test :
+  get_curr (default_interp [bf_inc; bf_inc; bf_inc; bf_inc]) = Some 4.
 Proof. reflexivity. Qed.
