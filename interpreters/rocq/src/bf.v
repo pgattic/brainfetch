@@ -76,43 +76,37 @@ Definition output_cell (s : bf_state) : bf_state := {|
 
 Definition bf_default_fuel := 5000.
 
-Fixpoint interp (p : bf_program) (s : bf_state) (fuel : nat) {struct fuel} : option bf_state :=
+Fixpoint interp (fuel : nat) (s : bf_state) (p : bf_program) : option bf_state :=
   match fuel, p with
   | O, nil => Some s
   | O, _ => None
   | _, nil => Some s
-  | S (fuel'), h :: t => match interp_single h s fuel' with
-    | Some s' => interp t s' fuel'
+  | S (fuel'), h :: t => match interp_single fuel' s h with
+    | Some s' => interp fuel' s' t
     | None => None
     end
   end
 
-with interp_single (c : bf_command) (s : bf_state) (fuel : nat) {struct fuel} : option bf_state :=
-  match fuel with
-  | O => None
-  | S fuel' =>
-    match c with
-    | bf_inc => Some {| tape := inc_cell (tape s); input := input s; output := output s |}
-    | bf_dec => Some {| tape := dec_cell (tape s); input := input s; output := output s |}
-    | bf_next => Some {| tape := move_right (tape s); input := input s; output := output s |}
-    | bf_prev => Some {| tape := move_left (tape s); input := input s; output := output s |}
-    | bf_input => Some (input_cell s)
-    | bf_output => Some (output_cell s)
-    | bf_loop body => let fix loop (s : bf_state) (fuel : nat) :=
-        match fuel with
-        | O => None
-        | S (fuel') => if (curr (tape s)) =? 0 then Some s else
-          match interp body s fuel' with
-          | None => None
-          | Some s' => loop s' fuel'
-          end
-        end
-        in loop s fuel'
+with interp_single (loop_fuel : nat) (s : bf_state) (c : bf_command) : option bf_state :=
+  match c with
+  | bf_inc => Some {| tape := inc_cell (tape s); input := input s; output := output s |}
+  | bf_dec => Some {| tape := dec_cell (tape s); input := input s; output := output s |}
+  | bf_next => Some {| tape := move_right (tape s); input := input s; output := output s |}
+  | bf_prev => Some {| tape := move_left (tape s); input := input s; output := output s |}
+  | bf_input => Some (input_cell s)
+  | bf_output => Some (output_cell s)
+  | bf_loop body => let fix loop (fuel : nat) (s : bf_state) := match fuel with
+    | O => None
+    | S (fuel') => if (curr (tape s)) =? 0 then Some s else
+      match interp fuel' s body with
+      | None => None
+      | Some s' => loop fuel' s'
+      end
     end
+    in loop loop_fuel s
   end.
 
-Definition default_interp (prg : bf_program) :=
-  interp prg bf_default_state bf_default_fuel.
+Definition default_interp := interp bf_default_fuel bf_default_state.
 
 Definition get_tape (state : option bf_state) : option bf_tape :=
   match state with
