@@ -1,0 +1,5 @@
+(lang dune 3.13)
+(using menhir 2.1) ; ignore if not using parser
+(using coq 0.9)
+(name bf_rocq)
+
