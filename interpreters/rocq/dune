@@ -1,6 +1,0 @@
-(coq.theory
- (name bf)
- (packages bf)
- (files
-  src/bf.v))
-
