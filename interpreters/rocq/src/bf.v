@@ -24,7 +24,7 @@ Record bf_state : Type := {
   output : list nat;
 }.
 
-Definition bf_default_state := {|
+Definition bf_default_state : bf_state := {|
   tape := {| left := nil; curr := 0; right := nil |};
   input := nil;
   output := nil
@@ -46,13 +46,13 @@ Definition move_right (tape : bf_tape) : bf_tape :=
 
 Definition inc_cell (t : bf_tape) : bf_tape := {|
   left := left t;
-  curr := S (curr t);
+  curr := S (curr t) mod 256;
   right := right t;
 |}.
 
 Definition dec_cell (t : bf_tape) : bf_tape := {|
   left := left t;
-  curr := match curr t with | 0 => 0 | S n' => n' end;
+  curr := match curr t with | 0 => 255 | S n' => n' end;
   right := right t;
 |}.
 
@@ -120,7 +120,7 @@ Definition get_curr (state : option bf_state) : option nat :=
   | None => None
   end.
 
-(* Theorems And Tests *)
+(* Tests *)
 
 Example inc_test :
   get_curr (default_interp [bf_inc]) = Some 1.
@@ -144,3 +144,40 @@ Definition output_text (state : option bf_state) : option string :=
 
 (* Works!!! *)
 Eval compute in output_text (default_interp hello_world).
+
+(* Theorems *)
+
+(* For any amount of fuel, there exists a program that will use it all up *)
+
+Theorem fuel_necessary : forall (f : nat) (s : bf_state),
+  exists (p : bf_program), interp f s p = None.
+Proof.
+  intros. induction f.
+  - simpl. exists [bf_inc]. reflexivity.
+  - simpl. admit.
+Admitted.
+
+Lemma option_equality : forall (X : Type) (x y : X),
+  Some x = Some y -> x = y.
+Proof.
+  intros.
+  injection H. intros.
+  apply H0.
+Qed.
+
+Theorem cell_max_single : forall (f : nat) (s : bf_state) (c : bf_command),
+  interp_single f s c = Some s -> curr (tape s) < 255.
+Proof.
+  intros. induction c.
+  - unfold interp_single in H. simpl in H. admit.
+Admitted.
+
+(* Prove that all cells stay between 0..=255 *)
+Theorem cell_max : forall (p : bf_program) (s : bf_state),
+  default_interp p = Some s -> curr (tape s) <= 255.
+Proof.
+  intros. induction p.
+  - simpl in H. apply option_equality in H. rewrite <- H. simpl. apply le_0_n.
+  - intros. induction a.
+Admitted. (* DO NOT try `simpl in H` *)
+
