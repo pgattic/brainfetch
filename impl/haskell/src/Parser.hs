@@ -1,4 +1,4 @@
-module Parser where
+module Parser(parseBf) where
 
 data Command =
     CIncPtr
@@ -25,10 +25,8 @@ parseCmds (ch : rest) = case ch of
   _ -> parseCmds rest
 
 data ASTNode =
-    AddPtr Int
-  | SubPtr Int
-  | Next Int
-  | Prev Int
+    Add Int
+  | Move Int
   | PutChar
   | GetChar
   | Loop [ASTNode]
@@ -38,42 +36,10 @@ type AST = [ASTNode]
 type CmdStr = [Command]
 type Parser a = CmdStr -> Maybe (a, CmdStr)
 
-leadingJust :: [Maybe x] -> [x]
-leadingJust [] = []
-leadingJust (Nothing : _) = []
-leadingJust (Just x : t) = x : leadingJust t
-
 firstJust :: [Maybe x] -> Maybe x
 firstJust [] = Nothing
 firstJust (Just x : _) = Just x
 firstJust (Nothing : t) = firstJust t
-
-parseCmd :: Command -> ASTNode -> Parser ASTNode
-parseCmd _ _ [] = Nothing
-parseCmd cmd val (h : t) = if h == cmd then Just (val, t) else Nothing
-
-parseInc :: Parser ASTNode
-parseInc = parseCmd CIncVal (AddPtr 1)
-
--- parseAdd :: Parser ASTNode
--- parseAdd str = case countLeadingSome (map parseInc str) of
---   0 -> Nothing
---   x -> Just (AddPtr x)
-
-parseDec :: Parser ASTNode
-parseDec = parseCmd CDecVal (SubPtr 1)
-
-parseNext :: Parser ASTNode
-parseNext = parseCmd CIncPtr (Next 1)
-
-parsePrev :: Parser ASTNode
-parsePrev = parseCmd CDecPtr (Prev 1)
-
-parsePutCh :: Parser ASTNode
-parsePutCh = parseCmd CPutChar PutChar
-
-parseGetCh :: Parser ASTNode
-parseGetCh = parseCmd CGetChar GetChar
 
 parseChoice :: [Parser x] -> Parser x
 parseChoice parsers str = firstJust (map (\x -> x str) parsers)
@@ -82,27 +48,66 @@ parseChoice parsers str = firstJust (map (\x -> x str) parsers)
 parseMany :: Parser x -> Parser [x]
 parseMany p str =
   case p str of
-    Just (x, rest) -> 
+    Just (x, rest) ->
       case parseMany p rest of
         Just (xs, rest') -> Just (x : xs, rest')
         Nothing -> Nothing
     Nothing -> Just ([], str)
 
-bfParsers :: [ Parser ASTNode ]
-bfParsers = [parseDec, parseNext, parsePrev, parsePutCh, parseGetCh, loopParser]
+parseCmd :: Command -> x -> Parser x
+parseCmd _ _ [] = Nothing
+parseCmd cmd val (h : t) = if h == cmd then Just (val, t) else Nothing
+
+
+
+parseAdd :: Parser ASTNode
+parseAdd str =
+  let
+    parseInc = parseCmd CIncVal 1
+    parseDec = parseCmd CDecVal (-1)
+  in case parseMany (parseChoice [ parseInc, parseDec ]) str of
+    Just (items, rest) -> if items == [] then Nothing else Just (Add (sum items), rest)
+    Nothing -> Nothing
+
+parseMove :: Parser ASTNode
+parseMove str =
+  let
+    parseNext = parseCmd CIncPtr 1
+    parsePrev = parseCmd CDecPtr (-1)
+  in case parseMany (parseChoice [parseNext, parsePrev]) str of
+    Just (items, rest) -> if items == [] then Nothing else Just (Move (sum items), rest)
+    Nothing -> Nothing
+
+parsePutCh :: Parser ASTNode
+parsePutCh = parseCmd CPutChar PutChar
+
+parseGetCh :: Parser ASTNode
+parseGetCh = parseCmd CGetChar GetChar
+
+bfParsers :: [Parser ASTNode]
+bfParsers = [parseAdd, parseMove, parsePutCh, parseGetCh, loopParser]
 
 loopParser :: Parser ASTNode
 loopParser [] = Nothing
 loopParser (h : t) =
   if h == COpenBr then
-    case parseMany (parseChoice bfParsers) t of
-      Just (x, rest) -> Just (Loop x, rest)
+    case bfParser t of
+      Just (x, rest) -> let
+          cbParser = parseCmd CCloseBr ()
+        in case cbParser rest of 
+          Just ((), rest') -> Just (Loop x, rest')
+          Nothing -> error "Unparseable token"
       Nothing -> Just (Loop [], t)
   else
     Nothing
 
-bfParser :: Parser [ASTNode]
-bfParser input = parseMany (parseChoice bfParsers) input
+bfParser :: Parser AST
+bfParser = parseMany (parseChoice bfParsers)
 
--- TODO: This does not correctly handle `]`, the parsers all stop on that character.
+parseBf :: String -> Either AST String
+parseBf str = case bfParser (parseCmds str) of
+  Just (result, []) -> Left result
+  Just (_, CCloseBr : _) -> Right "Unopened ]"
+  Just (_, _) -> Right "Unknown Error"
+  Nothing -> Right "Unknown Error"
 

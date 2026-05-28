@@ -1,13 +1,9 @@
 module Main where
 
 import System.Environment (getArgs)
-import Memory (prev, next, newMem)
+-- import Memory (prev, next, newMem)
+import Parser
 -- import ProgState
-
-data MyStruct = MyStruct {
-  a :: Int,
-  b :: Int
-} deriving Show
 
 main :: IO ()
 main = do
@@ -17,9 +13,7 @@ main = do
   else do
     contents <- readFile (head args)
     putStrLn contents
-
--- |Calculates the factorial of a number
-fact :: (Eq t, Num t) => t -> t
-fact 0 = 1
-fact x = x * fact (x-1)
+    case parseBf contents of
+      Left ast -> print ast
+      Right err -> print err
 
