@@ -27,3 +27,10 @@ to produce something like:
 ]
 ```
 
+## Usage
+
+```bash
+# Nix has a hard time with relative paths from strings
+nix-instantiate --strict --eval brainfetch.nix --argstr file "/absolute/path/to/file.bf"
+```
+
