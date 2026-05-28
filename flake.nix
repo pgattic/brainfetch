@@ -1,5 +1,6 @@
 {
   description = "BrainF*** Development Flake";
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
@@ -7,8 +8,15 @@
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } {
-    imports = [ (inputs.import-tree ./impl) ];
-    systems = [ "x86_64-linux" "aarch64-linux" ];
+    systems = [
+      "x86_64-linux"
+      "aarch64-linux"
+    ];
+
+    imports = let
+      is_module = (inputs.nixpkgs.lib.hasSuffix "module.nix");
+    in [
+      (inputs.import-tree.filter is_module ./impl)
+    ];
   };
 }
-
