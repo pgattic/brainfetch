@@ -2,8 +2,7 @@ module Main where
 
 import System.Environment (getArgs)
 import Memory (prev, next, newMem)
-import Command
-import ProgState
+-- import ProgState
 
 data MyStruct = MyStruct {
   a :: Int,
@@ -18,10 +17,6 @@ main = do
   else do
     contents <- readFile (head args)
     putStrLn contents
-    let prog = parseCmds contents
-    print prog
-    let jt = buildJumpTable prog
-    print jt
 
 -- |Calculates the factorial of a number
 fact :: (Eq t, Num t) => t -> t
