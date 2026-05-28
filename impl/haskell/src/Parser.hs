@@ -1,4 +1,4 @@
-module Parser(parseBf) where
+module Parser(ASTNode, AST, parseBf) where
 
 data Command =
     CIncPtr
@@ -11,7 +11,10 @@ data Command =
   | CGetChar
   deriving (Show, Eq)
 
-parseCmds :: String -> [Command]
+type CmdStr = [Command]
+
+-- Turn a string into a list of Command tokens, stripping comments
+parseCmds :: String -> CmdStr
 parseCmds [] = []
 parseCmds (ch : rest) = case ch of
   '+' -> CIncVal : parseCmds rest
@@ -33,8 +36,9 @@ data ASTNode =
   deriving (Show, Eq)
 
 type AST = [ASTNode]
-type CmdStr = [Command]
 type Parser a = CmdStr -> Maybe (a, CmdStr)
+
+-- GENERAL PARSER COMBINATORS --
 
 firstJust :: [Maybe x] -> Maybe x
 firstJust [] = Nothing
@@ -44,7 +48,6 @@ firstJust (Nothing : t) = firstJust t
 parseChoice :: [Parser x] -> Parser x
 parseChoice parsers str = firstJust (map (\x -> x str) parsers)
 
--- parseMany :: (CmdStr -> Maybe (a, CmdStr)) -> (CmdStr -> Maybe ([a], CmdStr))
 parseMany :: Parser x -> Parser [x]
 parseMany p str =
   case p str of
@@ -58,52 +61,58 @@ parseCmd :: Command -> x -> Parser x
 parseCmd _ _ [] = Nothing
 parseCmd cmd val (h : t) = if h == cmd then Just (val, t) else Nothing
 
+-- BF-SPECIFIC PARSERS --
 
-
+-- Parse repeated +/- into (Add x) where x is a signed number
 parseAdd :: Parser ASTNode
 parseAdd str =
   let
     parseInc = parseCmd CIncVal 1
     parseDec = parseCmd CDecVal (-1)
   in case parseMany (parseChoice [ parseInc, parseDec ]) str of
-    Just (items, rest) -> if items == [] then Nothing else Just (Add (sum items), rest)
+    Just (items, rest) -> if sum items == 0 then Nothing else Just (Add (sum items), rest)
     Nothing -> Nothing
 
+-- Parse repeated >/< into (Move x) where x is a signed number
 parseMove :: Parser ASTNode
 parseMove str =
   let
     parseNext = parseCmd CIncPtr 1
     parsePrev = parseCmd CDecPtr (-1)
   in case parseMany (parseChoice [parseNext, parsePrev]) str of
-    Just (items, rest) -> if items == [] then Nothing else Just (Move (sum items), rest)
+    Just (items, rest) -> if sum items == 0 then Nothing else Just (Move (sum items), rest)
     Nothing -> Nothing
 
+-- Parse . into PutChar node
 parsePutCh :: Parser ASTNode
 parsePutCh = parseCmd CPutChar PutChar
 
+-- Parse , into GetChar node
 parseGetCh :: Parser ASTNode
 parseGetCh = parseCmd CGetChar GetChar
 
-bfParsers :: [Parser ASTNode]
-bfParsers = [parseAdd, parseMove, parsePutCh, parseGetCh, loopParser]
-
-loopParser :: Parser ASTNode
-loopParser [] = Nothing
-loopParser (h : t) =
+-- Parse [] sections, recurses using bfParser
+parseLoop :: Parser ASTNode
+parseLoop [] = Nothing
+parseLoop (h : t) =
   if h == COpenBr then
     case bfParser t of
-      Just (x, rest) -> let
-          cbParser = parseCmd CCloseBr ()
-        in case cbParser rest of 
+      Just (x, rest) ->
+        case (parseCmd CCloseBr ()) rest of 
           Just ((), rest') -> Just (Loop x, rest')
           Nothing -> error "Unparseable token"
       Nothing -> Just (Loop [], t)
   else
     Nothing
 
+-- Parse multiple tokens into a list of AST nodes
 bfParser :: Parser AST
-bfParser = parseMany (parseChoice bfParsers)
+bfParser =
+  let
+    parsers = [parseAdd, parseMove, parsePutCh, parseGetCh, parseLoop]
+  in parseMany (parseChoice parsers)
 
+-- Wrapper that provides a simpler return type to work with
 parseBf :: String -> Either AST String
 parseBf str = case bfParser (parseCmds str) of
   Just (result, []) -> Left result
