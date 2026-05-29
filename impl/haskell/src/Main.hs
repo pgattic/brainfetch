@@ -1,9 +1,8 @@
 module Main where
 
 import System.Environment (getArgs)
--- import Memory (prev, next, newMem)
 import Parser (parseBf)
--- import ProgState
+import Interp (interp)
 
 usage :: IO ()
 usage = putStrLn "Usage: `brainfetch path/to/file.bf`"
@@ -24,7 +23,9 @@ main = do
     (arg : []) -> do
       contents <- readFile (arg)
       case parseBf contents of
-        Left ast -> print ast
+        Left ast -> do
+          _ <- (interp ast)
+          return ()
         Right err -> print err
     (_ : _) -> do
       putStrLn "Too many arguments."

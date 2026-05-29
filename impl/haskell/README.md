@@ -1,11 +1,10 @@
 
-# Unfinished
+# Haskell Implementation
 
-Running the program:
+## Usage
 
 ```
 cabal build .
-
 cabal run . -- [path-to-file].bf
 ```
 

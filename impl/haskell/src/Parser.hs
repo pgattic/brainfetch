@@ -84,15 +84,15 @@ parseMove str =
     Just (items, rest) -> if sum items == 0 then Nothing else Just (Move (sum items), rest)
     Nothing -> Nothing
 
--- Parse . into PutChar node
+-- Parse "." into PutChar node
 parsePutCh :: Parser ASTNode
 parsePutCh = parseCmd CPutChar PutChar
 
--- Parse , into GetChar node
+-- Parse "," into GetChar node
 parseGetCh :: Parser ASTNode
 parseGetCh = parseCmd CGetChar GetChar
 
--- Parse [] sections, recurses using bfParser
+-- Parse [] sections, recurse using bfParser
 parseLoop :: Parser ASTNode
 parseLoop (COpenBr : t) =
   case bfParser t of
@@ -103,6 +103,7 @@ parseLoop (COpenBr : t) =
     Nothing -> Just (Loop [], t)
 parseLoop _ = Nothing
 
+-- "[-]" Optimization
 parseZero :: Parser ASTNode
 parseZero (COpenBr : (CDecVal : (CCloseBr : rest))) = Just (Zero, rest)
 parseZero (COpenBr : (CIncVal : (CCloseBr : rest))) = Just (Zero, rest)
