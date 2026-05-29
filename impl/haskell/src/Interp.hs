@@ -20,7 +20,7 @@ interpOne x mem =
       return (mem)
     GetChar -> do
       ch <- getChar
-      return (set (ord ch) mem)
+      return (set (fromIntegral (ord ch)) mem)
     Zero -> pure (set 0 mem)
     Loop n -> do
       new_mem <- (iterUntilM (\m -> curr m == 0) (interpMany n)) mem

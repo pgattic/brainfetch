@@ -14,17 +14,17 @@ newMem = Memory {
   right = repeat 0
 }
 
-add :: Int -> Memory -> Memory
+add :: Word8 -> Memory -> Memory
 add x mem = Memory {
   left = left mem,
-  curr = (curr mem) + fromIntegral x,
+  curr = (curr mem) + x,
   right = right mem
 }
 
-set :: Int -> Memory -> Memory
+set :: Word8 -> Memory -> Memory
 set x mem = Memory {
   left = left mem,
-  curr = fromIntegral x,
+  curr = x,
   right = right mem
 }
 
@@ -43,9 +43,10 @@ prev mem = Memory {
 }
 
 move :: Int -> Memory -> Memory
-move x mem = case x of
-  0 -> mem
-  n | n > 0 -> iterate next mem !! n
-    | n < 0 -> iterate prev mem !! (-n)
-  _ -> error "IDK how you got here"
+move x mem =
+  if x > 0 then
+    iterate next mem !! x
+  else if x < 0 then
+    iterate prev mem !! (-x)
+  else mem
 

@@ -1,4 +1,5 @@
 module Parser(ASTNode(Add, Move, PutChar, GetChar, Loop, Zero), AST, parseBf) where
+import Data.Word
 
 data Command =
     CIncPtr
@@ -28,7 +29,7 @@ parseCmds (ch : rest) = case ch of
   _ -> parseCmds rest
 
 data ASTNode =
-    Add Int
+    Add Word8
   | Move Int
   | PutChar
   | GetChar
