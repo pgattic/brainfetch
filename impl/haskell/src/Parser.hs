@@ -1,4 +1,4 @@
-module Parser(ASTNode, AST, parseBf) where
+module Parser(ASTNode(Add, Move, PutChar, GetChar, Loop, Zero), AST, parseBf) where
 
 data Command =
     CIncPtr
@@ -33,6 +33,7 @@ data ASTNode =
   | PutChar
   | GetChar
   | Loop [ASTNode]
+  | Zero
   deriving (Show, Eq)
 
 type AST = [ASTNode]
@@ -93,23 +94,25 @@ parseGetCh = parseCmd CGetChar GetChar
 
 -- Parse [] sections, recurses using bfParser
 parseLoop :: Parser ASTNode
-parseLoop [] = Nothing
-parseLoop (h : t) =
-  if h == COpenBr then
-    case bfParser t of
-      Just (x, rest) ->
-        case (parseCmd CCloseBr ()) rest of 
-          Just ((), rest') -> Just (Loop x, rest')
-          Nothing -> error "Unparseable token"
-      Nothing -> Just (Loop [], t)
-  else
-    Nothing
+parseLoop (COpenBr : t) =
+  case bfParser t of
+    Just (x, rest) ->
+      case (parseCmd CCloseBr ()) rest of
+        Just ((), rest') -> Just (Loop x, rest')
+        Nothing -> error "Unparseable token"
+    Nothing -> Just (Loop [], t)
+parseLoop _ = Nothing
+
+parseZero :: Parser ASTNode
+parseZero (COpenBr : (CDecVal : (CCloseBr : rest))) = Just (Zero, rest)
+parseZero (COpenBr : (CIncVal : (CCloseBr : rest))) = Just (Zero, rest)
+parseZero _ = Nothing
 
 -- Parse multiple tokens into a list of AST nodes
 bfParser :: Parser AST
 bfParser =
   let
-    parsers = [parseAdd, parseMove, parsePutCh, parseGetCh, parseLoop]
+    parsers = [parseZero, parseAdd, parseMove, parsePutCh, parseGetCh, parseLoop]
   in parseMany (parseChoice parsers)
 
 -- Wrapper that provides a simpler return type to work with
