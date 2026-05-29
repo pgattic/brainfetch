@@ -14,5 +14,5 @@ cabal run . -- [path-to-file].bf
 
 ## Performance
 
-- Completes `hanoi.bf` in 31.227
+- Completes `hanoi.bf` in 27.451
 
