@@ -1,9 +1,10 @@
 module Memory(Memory, newMem, add, set, move, curr) where
+import Data.Word
 
 data Memory = Memory {
-  left :: [Int],
-  curr :: Int,
-  right :: [Int]
+  left :: [Word8],
+  curr :: !Word8,
+  right :: [Word8]
 } deriving (Show, Eq)
 
 newMem :: Memory
@@ -16,14 +17,14 @@ newMem = Memory {
 add :: Int -> Memory -> Memory
 add x mem = Memory {
   left = left mem,
-  curr = ((curr mem) + x) `mod` 256,
+  curr = (curr mem) + fromIntegral x,
   right = right mem
 }
 
 set :: Int -> Memory -> Memory
 set x mem = Memory {
   left = left mem,
-  curr = x,
+  curr = fromIntegral x,
   right = right mem
 }
 

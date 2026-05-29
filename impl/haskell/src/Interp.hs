@@ -16,7 +16,7 @@ interpOne x mem =
     Add n -> pure (add n mem)
     Move n -> pure (move n mem)
     PutChar -> do
-      putChar (chr (curr mem))
+      putChar (chr (fromIntegral (curr mem)))
       return (mem)
     GetChar -> do
       ch <- getChar
