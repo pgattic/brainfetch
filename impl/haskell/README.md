@@ -14,5 +14,6 @@ cabal run . -- [path-to-file].bf
 
 ## Performance
 
-- Completes `hanoi.bf` in 3.897
+- Completes `mandelbrot.bf` in 31.896
+- Completes `hanoi.bf` in 1.332
 

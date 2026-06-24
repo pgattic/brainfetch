@@ -3,7 +3,7 @@ module Main where
 import System.Environment (getArgs)
 import System.Exit (ExitCode (ExitFailure), exitWith)
 import Parser (parseBf)
-import Interp (interp)
+import InterpVec (interp)
 import System.IO.Error (tryIOError)
 
 info :: IO ()
