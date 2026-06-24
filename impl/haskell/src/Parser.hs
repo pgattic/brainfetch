@@ -65,12 +65,12 @@ parseCmd cmd val (h : t) = if h == cmd then Just (val, t) else Nothing
 
 -- BF-SPECIFIC PARSERS --
 
--- Parse repeated +/- into (Add x) where x is a signed number
+-- Parse repeated +/- into (Add x) where x is a wrapping 8-bit number
 parseAdd :: Parser ASTNode
 parseAdd str =
   let
     parseInc = parseCmd CIncVal 1
-    parseDec = parseCmd CDecVal (-1)
+    parseDec = parseCmd CDecVal 255 -- Adding 255 == Subbing 1 in this case
   in case parseMany (parseChoice [ parseInc, parseDec ]) str of
     Just (items, rest) -> if sum items == 0 then Nothing else Just (Add (sum items), rest)
     Nothing -> Nothing

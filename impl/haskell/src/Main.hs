@@ -1,34 +1,48 @@
 module Main where
 
 import System.Environment (getArgs)
+import System.Exit (ExitCode (ExitFailure), exitWith)
 import Parser (parseBf)
 import Interp (interp)
+import System.IO.Error (tryIOError)
 
-usage :: IO ()
-usage = putStrLn "Usage: `brainfetch path/to/file.bf`"
+info :: IO ()
+info = do
+  putStrLn "A BrainF*** interpreter written in Haskell"
+  putStrLn "By Preston Corless"
+  putStrLn ""
+  putStrLn "Usage: brainfetch [FILE]"
+  putStrLn ""
+  putStrLn "Options:"
+  putStrLn "  -h, --help        Display this help info"
+
+safeReadFile :: FilePath -> IO (Either IOError String)
+safeReadFile path = tryIOError (readFile path)
 
 main :: IO ()
 main = do
   args <- getArgs
-  if "--help" `elem` args then do
-    putStrLn "Brainfetch: Haskell implementation"
-    putStrLn "By Preston Corless"
-    putStrLn ""
-    usage
+  if elem "--help" args || elem "-h" args then do
+    info
   else case args of
     [] -> do
-      putStrLn "Please specify a file."
-      putStrLn ""
-      usage
+      info
     (arg : []) -> do
-      contents <- readFile (arg)
-      case parseBf contents of
-        Left ast -> do
-          _ <- (interp ast)
-          return ()
-        Right err -> print err
-    (_ : _) -> do
-      putStrLn "Too many arguments."
+      result <- safeReadFile arg
+      case result of
+        Left err -> do
+          putStrLn (show err)
+          exitWith (ExitFailure 1)
+        Right contents -> case parseBf contents of
+          Left ast -> do
+            _ <- (interp ast)
+            return ()
+          Right err -> do
+            print err
+            exitWith (ExitFailure 1)
+    _ -> do
+      putStrLn "Error: Too many arguments."
       putStrLn ""
-      usage
+      putStrLn "For usage information, type `brainfetch --help`"
+      exitWith (ExitFailure 1)
 
