@@ -3,8 +3,8 @@ import qualified Data.Vector.Unboxed.Mutable as VM
 import Data.Word
 
 data Memory = Memory {
-  tape :: VM.IOVector Word8,
-  idx :: Int
+  tape :: !(VM.IOVector Word8),
+  idx :: !Int
 }
 
 newMem :: IO Memory
