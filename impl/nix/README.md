@@ -1,31 +1,11 @@
 
-# BrainF*** interpreter in raw Nix
+# Nix Implementation
 
-No, not as a derivation
+No, not as a derivation!
 
-Current goal: Try to get this input:
+BrainF*** interpreter written in pure Nix. Implementation found in `src/`, not `module.nix`.
 
-```
-++[>++<-].
-```
-
-to produce something like:
-
-```nix
-[
-  { type = "+"; count = 2; }
-  {
-    type = "loop";
-    body = [
-      { type = ">"; count = 1; }
-      { type = "+"; count = 2; }
-      { type = "<"; count = 1; }
-      { type = "-"; count = 1; }
-    ];
-  }
-  { type = "."; }
-]
-```
+By Preston Corless
 
 ## Usage
 
@@ -33,4 +13,8 @@ to produce something like:
 # Nix has a hard time with relative paths from strings
 nix-instantiate --strict --eval brainfetch.nix --argstr file "/absolute/path/to/file.bf"
 ```
+
+## Performance
+
+Awful.
 
