@@ -85,10 +85,11 @@ with builtins; let
     parsers = [ parse_add parse_move parse_putch parse_getch parse_loop ];
   in parse_many (parse_choice parsers);
 
-in {
   parse_bf = str: let
     parsed = bf_parser (parse_cmds str);
   in
     if parsed == null || parsed.rest != [] then null else
     parsed.token;
+in {
+  inherit parse_bf;
 }
