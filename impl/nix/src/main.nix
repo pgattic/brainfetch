@@ -3,4 +3,3 @@ with builtins; let
   interp = import ./interp.nix;
 in
   { file }: interp.interp (parser.parse_bf (readFile file))
-

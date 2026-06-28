@@ -1,4 +1,6 @@
 with builtins; let
+  h = import ./helpers.nix;
+
   # String -> [String]
   parse_cmds = content:
     filter (ch: elem ch [ "+" "-" ">" "<" "[" "]" "." "," ]) (split "" content);
@@ -15,18 +17,9 @@ with builtins; let
 
   # GENERAL PARSER COMBINATORS
 
-  first_non_null = list:
-    if list == [] then
-      null
-    else
-      if head list == null then
-        first_non_null (tail list)
-      else
-        head list;
-
   # [Parser x] -> Parser x
   parse_choice = parsers: str:
-    first_non_null (map (x: x str) parsers);
+    h.first_non_null (map (x: x str) parsers);
 
   # Parser x -> Parser [x]
   parse_many = p: str:
@@ -62,7 +55,7 @@ with builtins; let
     parsed = parse_many (parse_choice [ parse_next parse_prev ]) str;
   in
     if parsed == null then null else
-      let sum = builtins.foldl' (acc: x: acc + x) 0 parsed.token; in
+      let sum = foldl' (acc: x: acc + x) 0 parsed.token; in
         if sum == 0 then null else
         { token = { type = "Move"; count = sum; }; rest = parsed.rest; };
 
@@ -81,8 +74,14 @@ with builtins; let
         if parseclosed == null then throw "unparseable token" else
         { token = { type = "Loop"; nodes = parsed.token; }; rest = parseclosed.rest; };
 
+  parse_zero = str:
+    if str == [] then null else
+    if head str == "[" && head (tail str) == "-" && head (tail (tail str)) == "]" then
+      { token.type = "Zero"; rest = tail tail tail str; }
+    else null;
+
   bf_parser = let
-    parsers = [ parse_add parse_move parse_putch parse_getch parse_loop ];
+    parsers = [ parse_zero parse_add parse_move parse_putch parse_getch parse_loop ];
   in parse_many (parse_choice parsers);
 
   parse_bf = str: let

@@ -1,4 +1,6 @@
 with builtins; let
+  h = import ./helpers.nix;
+
   new_bf_state = {
     output = [];
     left = [];
@@ -6,31 +8,7 @@ with builtins; let
     right = [];
   };
 
-  repeat = x: fn: input:
-    if x <= 0 then input else
-      repeat (x - 1) fn (fn input);
-
-# Helper function to extract a 1-character string based on its numeric code
-  asciiCodeToString = let
-    asciiTable = "          \t\n  \r                  !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ ";
-  in code: builtins.substring code 1 asciiTable;
-
-  # ASTNode:
-  # | { type: "Add"; count: Int; }
-  # | { type: "Move"; count: Int; }
-  # | { type: "PutChar"; }
-  # | { type: "GetChar"; }
-  # | { type: "Loop"; nodes: [ASTNode]; }
-  # | { type: "Zero"; }
-  # Program: [ASTNode]
-
-  mod = x: y:
-    let
-      rem = x - (x / y * y);
-    in
-      if rem < 0 then rem + y else rem;
-
-  add = x: state: state // { curr = mod (state.curr + x) 256; };
+  add = x: state: state // { curr = h.mod (state.curr + x) 256; };
   set = x: state: state // { curr = x; };
   next = state: state // (if state.right == [] then {
     curr = 0;
@@ -52,13 +30,13 @@ with builtins; let
 
   move = x: state:
     if x > 0 then
-      repeat x next state
+      h.repeat x next state
     else if x < 0 then
-      repeat (-x) prev state
+      h.repeat (-x) prev state
     else state;
 
   put_char = state: state // {
-    output = state.output ++ [ (asciiCodeToString state.curr) ];
+    output = state.output ++ [ (h.asciiCodeToString state.curr) ];
   };
 
   iter_until = test: fn: input:
@@ -69,10 +47,10 @@ with builtins; let
     if cmd.type == "Add" then add cmd.count
     else if cmd.type == "Move" then move cmd.count
     else if cmd.type == "PutChar" then put_char
-    else if cmd.type == "GetChar" then throw "input not implemented"
+    else if cmd.type == "GetChar" then throw "GetChar not implemented"
     else if cmd.type == "Loop" then iter_until (st: st.curr == 0) (interp_many cmd.nodes)
     else if cmd.type == "Zero" then set 0
-    else throw "what";
+    else throw "Invalid Token";
 
   interp_many = prog: state:
     if prog == [] then state else
