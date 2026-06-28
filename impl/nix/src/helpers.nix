@@ -22,6 +22,9 @@ with builtins; let
       else
         head list;
 
+  reverse = xs: let
+    len = length xs;
+  in genList (i: elemAt xs (len - i - 1)) len;
 in {
-  inherit repeat asciiCodeToString mod first_non_null;
+  inherit repeat asciiCodeToString mod first_non_null reverse;
 }

@@ -36,7 +36,7 @@ with builtins; let
     else state;
 
   put_char = state: state // {
-    output = state.output ++ [ (h.asciiCodeToString state.curr) ];
+    output = [ (h.asciiCodeToString state.curr) ] ++ state.output;
   };
 
   iter_until = test: fn: input:
@@ -56,7 +56,7 @@ with builtins; let
     if prog == [] then state else
     interp_many (tail prog) (interp_one (head prog) state);
 
-  interp = prog: concatStringsSep "" (interp_many prog new_bf_state).output;
+  interp = prog: concatStringsSep "" (h.reverse (interp_many prog new_bf_state).output);
 in {
   inherit interp;
 }
